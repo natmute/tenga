@@ -29,7 +29,7 @@ const Index = () => {
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-primary">
                   <span className="text-sm font-bold text-primary-foreground">M</span>
                 </div>
-                <span className="font-display text-lg font-bold">Mallify</span>
+                <span className="font-display text-lg font-bold">Tenga</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Your favorite shops, all in one place.
@@ -68,7 +68,7 @@ const Index = () => {
           </div>
 
           <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            <p>© 2024 Mallify. All rights reserved.</p>
+            <p>© 2024 Tenga. All rights reserved.</p>
           </div>
         </div>
       </footer>
