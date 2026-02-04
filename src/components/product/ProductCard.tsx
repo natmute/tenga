@@ -35,6 +35,12 @@ const ProductCard = ({ product, shop, index = 0, variant = 'default' }: ProductC
     setIsLiked(!isLiked);
   };
 
+  const handleReviewClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = `/product/${product.slug}/reviews`;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -120,10 +126,14 @@ const ProductCard = ({ product, shop, index = 0, variant = 'default' }: ProductC
             </div>
 
             {variant === 'default' && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <button
+                onClick={handleReviewClick}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
                 <Star className="h-3.5 w-3.5 fill-warning text-warning" />
                 <span>{product.rating}</span>
-              </div>
+                <span className="hidden sm:inline">({product.reviewCount})</span>
+              </button>
             )}
           </div>
         </div>

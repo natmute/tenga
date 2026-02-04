@@ -116,6 +116,12 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600&h=600&fit=crop',
       'https://images.unsplash.com/photo-1509942774463-acf339cf87d5?w=600&h=600&fit=crop',
     ],
+    colorImages: {
+      'Black': 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600&h=600&fit=crop',
+      'Gray': 'https://images.unsplash.com/photo-1578768079052-aa76e52ff62e?w=600&h=600&fit=crop',
+      'Navy': 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=600&h=600&fit=crop',
+      'Cream': 'https://images.unsplash.com/photo-1544022613-e87ca75a784a?w=600&h=600&fit=crop',
+    },
     description: 'Premium oversized hoodie crafted from 100% organic cotton. Features a relaxed fit, kangaroo pocket, and adjustable drawstring hood.',
     category: 'Fashion',
     variants: [
@@ -162,6 +168,11 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&h=600&fit=crop',
       'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=600&h=600&fit=crop',
     ],
+    colorImages: {
+      'White': 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&h=600&fit=crop',
+      'Black': 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=600&h=600&fit=crop',
+      'Space Gray': 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=600&h=600&fit=crop',
+    },
     description: 'Premium wireless earbuds with active noise cancellation, 30-hour battery life, and crystal-clear audio.',
     category: 'Electronics',
     variants: [
@@ -207,6 +218,11 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&h=600&fit=crop',
       'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=600&h=600&fit=crop',
     ],
+    colorImages: {
+      'White': 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&h=600&fit=crop',
+      'Black': 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=600&h=600&fit=crop',
+      'Wood': 'https://images.unsplash.com/photo-1543198126-a8ad8e47fb22?w=600&h=600&fit=crop',
+    },
     description: 'Minimalist table lamp with warm LED lighting. Perfect for creating a cozy atmosphere.',
     category: 'Home & Living',
     variants: [
@@ -288,6 +304,12 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=600&h=600&fit=crop',
       'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&h=600&fit=crop',
     ],
+    colorImages: {
+      'Sage': 'https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=600&h=600&fit=crop',
+      'Charcoal': 'https://images.unsplash.com/photo-1592432678016-e910b452f9a2?w=600&h=600&fit=crop',
+      'Blush': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&h=600&fit=crop',
+      'Ocean': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&h=600&fit=crop',
+    },
     description: 'Extra-thick yoga mat with superior grip and cushioning. Eco-friendly materials.',
     category: 'Sports',
     variants: [
@@ -349,6 +371,11 @@ export const products: Product[] = [
     images: [
       'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=600&h=600&fit=crop',
     ],
+    colorImages: {
+      'Tortoise': 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=600&h=600&fit=crop',
+      'Black': 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=600&h=600&fit=crop',
+      'Pink': 'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=600&h=600&fit=crop',
+    },
     description: 'Classic cat-eye sunglasses with UV protection. Vintage-inspired design.',
     category: 'Fashion',
     variants: [

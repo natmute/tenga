@@ -22,6 +22,7 @@ export interface Product {
   price: number;
   originalPrice?: number;
   images: string[];
+  colorImages?: Record<string, string>;
   description: string;
   category: string;
   variants?: ProductVariant[];
@@ -60,6 +61,7 @@ export interface Category {
 
 export interface Review {
   id: string;
+  productId: string;
   userId: string;
   userName: string;
   userAvatar: string;
@@ -67,4 +69,9 @@ export interface Review {
   comment: string;
   createdAt: string;
   images?: string[];
+}
+
+export interface ColorVariantImage {
+  color: string;
+  imageUrl: string;
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -10,6 +10,7 @@ import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import ProductCard from '@/components/product/ProductCard';
 import { products, getShopById, getProductsByShopId } from '@/data/mockData';
+import { getReviewsByProductId } from '@/data/reviewsData';
 import { useCart } from '@/context/CartContext';
 import { cn } from '@/lib/utils';
 
@@ -22,11 +23,29 @@ const ProductPage = () => {
   const relatedProducts = shop
     ? getProductsByShopId(shop.id).filter(p => p.id !== product?.id).slice(0, 4)
     : [];
+  const reviews = product ? getReviewsByProductId(product.id) : [];
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [isLiked, setIsLiked] = useState(false);
+
+  // Handle color variant image sync
+  useEffect(() => {
+    if (product && selectedVariants['Color'] && product.colorImages) {
+      const colorImage = product.colorImages[selectedVariants['Color']];
+      if (colorImage) {
+        // Find the index of the color image in the images array, or use as new image
+        const imageIndex = product.images.findIndex(img => img === colorImage);
+        if (imageIndex >= 0) {
+          setSelectedImage(imageIndex);
+        } else {
+          // Color image not in main images, set to first position conceptually
+          setSelectedImage(0);
+        }
+      }
+    }
+  }, [selectedVariants, product]);
 
   if (!product || !shop) {
     return (
@@ -52,6 +71,14 @@ const ProductPage = () => {
 
   const handleVariantSelect = (variantName: string, option: string) => {
     setSelectedVariants(prev => ({ ...prev, [variantName]: option }));
+  };
+
+  // Get the current display image (considering color selection)
+  const getCurrentImage = () => {
+    if (selectedVariants['Color'] && product.colorImages?.[selectedVariants['Color']]) {
+      return product.colorImages[selectedVariants['Color']];
+    }
+    return product.images[selectedImage];
   };
 
   return (
@@ -84,10 +111,11 @@ const ProductPage = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              key={getCurrentImage()}
               className="relative aspect-square overflow-hidden rounded-2xl bg-secondary"
             >
               <img
-                src={product.images[selectedImage]}
+                src={getCurrentImage()}
                 alt={product.name}
                 className="h-full w-full object-cover"
               />
@@ -104,10 +132,19 @@ const ProductPage = () => {
                 {product.images.map((image, index) => (
                   <button
                     key={index}
-                    onClick={() => setSelectedImage(index)}
+                    onClick={() => {
+                      setSelectedImage(index);
+                      // Clear color selection if manually selecting thumbnail
+                      if (selectedVariants['Color']) {
+                        setSelectedVariants(prev => {
+                          const { Color, ...rest } = prev;
+                          return rest;
+                        });
+                      }
+                    }}
                     className={cn(
                       "flex-shrink-0 h-20 w-20 rounded-xl overflow-hidden border-2 transition-colors",
-                      selectedImage === index
+                      selectedImage === index && !selectedVariants['Color']
                         ? "border-primary"
                         : "border-transparent opacity-70 hover:opacity-100"
                     )}
@@ -154,13 +191,17 @@ const ProductPage = () => {
                 transition={{ delay: 0.1 }}
                 className="mt-2 flex items-center gap-3"
               >
-                <div className="flex items-center gap-1">
+                {/* Clickable Rating */}
+                <Link
+                  to={`/product/${product.slug}/reviews`}
+                  className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                >
                   <Star className="h-5 w-5 fill-warning text-warning" />
                   <span className="font-medium">{product.rating}</span>
-                  <span className="text-muted-foreground">
-                    ({product.reviewCount} reviews)
+                  <span className="text-muted-foreground hover:text-primary hover:underline">
+                    ({reviews.length} reviews)
                   </span>
-                </div>
+                </Link>
                 <span className="text-muted-foreground">•</span>
                 <span className="text-muted-foreground">
                   {product.likeCount} likes
@@ -189,6 +230,11 @@ const ProductPage = () => {
                   <div key={variant.id}>
                     <label className="text-sm font-medium mb-2 block">
                       {variant.name}
+                      {selectedVariants[variant.name] && (
+                        <span className="text-muted-foreground ml-2">
+                          : {selectedVariants[variant.name]}
+                        </span>
+                      )}
                     </label>
                     <div className="flex flex-wrap gap-2">
                       {variant.options.map((option) => (
@@ -282,6 +328,43 @@ const ProductPage = () => {
             <div className="pt-4 border-t border-border">
               <h3 className="font-semibold mb-2">Description</h3>
               <p className="text-muted-foreground">{product.description}</p>
+            </div>
+
+            {/* Reviews Preview */}
+            <div className="pt-4 border-t border-border">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Customer Reviews</h3>
+                <Link 
+                  to={`/product/${product.slug}/reviews`}
+                  className="text-sm text-primary hover:underline"
+                >
+                  View all ({reviews.length})
+                </Link>
+              </div>
+              
+              {reviews.slice(0, 2).map((review) => (
+                <div key={review.id} className="mb-3 pb-3 border-b border-border last:border-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            star <= review.rating
+                              ? "fill-warning text-warning"
+                              : "fill-muted text-muted"
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm font-medium">
+                      {review.userName === 'Anonymous' ? 'Anonymous User' : review.userName}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{review.comment}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
