@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
+import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/product/ProductCard';
 import { products, getShopById, getProductsByShopId } from '@/data/mockData';
 import { getReviewsByProductId } from '@/data/reviewsData';
@@ -381,6 +382,8 @@ const ProductPage = () => {
           </section>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 };

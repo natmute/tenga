@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
+import Footer from '@/components/layout/Footer';
 import { categories, products } from '@/data/mockData';
 
 const categoryImages: Record<string, string> = {
@@ -89,6 +90,8 @@ const CategoriesPage = () => {
           })}
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 };

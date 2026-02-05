@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProductCard from '@/components/product/ProductCard';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
+import Footer from '@/components/layout/Footer';
 import { shops, getProductsByShopId } from '@/data/mockData';
 
 const ShopPage = () => {
@@ -212,6 +213,8 @@ const ShopPage = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Footer />
     </div>
   );
 };

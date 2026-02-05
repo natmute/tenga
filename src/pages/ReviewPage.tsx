@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
+import Footer from '@/components/layout/Footer';
 import { products, getShopById } from '@/data/mockData';
 import { getReviewsByProductId, getAverageRating, getRatingBreakdown } from '@/data/reviewsData';
 import { cn } from '@/lib/utils';
@@ -206,6 +207,8 @@ const ReviewPage = () => {
           )}
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 };

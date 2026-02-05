@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
+import Footer from '@/components/layout/Footer';
 import ShopCard from '@/components/shop/ShopCard';
 import { shops, categories } from '@/data/mockData';
 import { cn } from '@/lib/utils';
@@ -136,6 +137,8 @@ const ShopsPage = () => {
           </>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 };

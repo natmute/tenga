@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { TrendingUp, Heart } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
+import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/product/ProductCard';
 import { products, getShopById } from '@/data/mockData';
 
@@ -89,6 +90,8 @@ const TrendingPage = () => {
           </div>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 };

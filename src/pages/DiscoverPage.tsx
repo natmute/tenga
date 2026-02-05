@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
+import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/product/ProductCard';
 import FilterSheet, { FilterState } from '@/components/filters/FilterSheet';
 import { products, categories, getShopById, shops } from '@/data/mockData';
@@ -244,6 +245,8 @@ const DiscoverPage = () => {
           </div>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 };
