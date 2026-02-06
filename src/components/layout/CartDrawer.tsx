@@ -2,10 +2,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const CartDrawer = () => {
   const { items, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity, totalPrice, totalItems } = useCart();
+  const navigate = useNavigate();
 
   return (
     <AnimatePresence>
@@ -151,7 +152,13 @@ const CartDrawer = () => {
                     <span>Total</span>
                     <span>${totalPrice.toFixed(2)}</span>
                   </div>
-                  <Button className="w-full bg-gradient-primary h-12 text-base font-medium">
+                  <Button
+                    className="w-full bg-gradient-primary h-12 text-base font-medium"
+                    onClick={() => {
+                      setIsCartOpen(false);
+                      navigate('/checkout');
+                    }}
+                  >
                     Checkout
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
