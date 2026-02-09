@@ -27,7 +27,7 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold mb-4">Sell</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground">Open a Shop</a></li>
+              <li><a href="/open-shop" className="hover:text-foreground">Open a Shop</a></li>
               <li><a href="#" className="hover:text-foreground">Seller Dashboard</a></li>
               <li><a href="#" className="hover:text-foreground">Pricing</a></li>
               <li><a href="#" className="hover:text-foreground">Success Stories</a></li>
