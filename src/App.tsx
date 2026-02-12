@@ -22,6 +22,9 @@ import HelpCenterPage from "./pages/HelpCenterPage";
 import ContactUsPage from "./pages/ContactUsPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
+import SellerDashboardPage from "./pages/SellerDashboardPage";
+import PricingPage from "./pages/PricingPage";
+import SuccessStoriesPage from "./pages/SuccessStoriesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +55,9 @@ const App = () => (
               <Route path="/contact-us" element={<ContactUsPage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+              <Route path="/seller-dashboard" element={<SellerDashboardPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/success-stories" element={<SuccessStoriesPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
