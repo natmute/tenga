@@ -18,6 +18,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import OpenShopPage from "./pages/OpenShopPage";
 import AuthPage from "./pages/AuthPage";
+import HelpCenterPage from "./pages/HelpCenterPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
               <Route path="/open-shop" element={<OpenShopPage />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/help-center" element={<HelpCenterPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
