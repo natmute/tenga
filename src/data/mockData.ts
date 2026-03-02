@@ -25,7 +25,7 @@ export const shops: Shop[] = [
     followerCount: 12400,
     productCount: 89,
     isVerified: true,
-    location: 'New York, USA',
+    location: 'Harare, Zimbabwe',
   },
   {
     id: '2',
@@ -40,7 +40,7 @@ export const shops: Shop[] = [
     followerCount: 8900,
     productCount: 156,
     isVerified: true,
-    location: 'San Francisco, USA',
+    location: 'Bulawayo, Zimbabwe',
   },
   {
     id: '3',
@@ -55,7 +55,7 @@ export const shops: Shop[] = [
     followerCount: 5600,
     productCount: 67,
     isVerified: false,
-    location: 'Portland, USA',
+    location: 'Mutare, Zimbabwe',
   },
   {
     id: '4',
@@ -70,7 +70,7 @@ export const shops: Shop[] = [
     followerCount: 15200,
     productCount: 45,
     isVerified: true,
-    location: 'Los Angeles, USA',
+    location: 'Harare, Zimbabwe',
   },
   {
     id: '5',
@@ -85,7 +85,7 @@ export const shops: Shop[] = [
     followerCount: 7800,
     productCount: 78,
     isVerified: true,
-    location: 'Austin, USA',
+    location: 'Gweru, Zimbabwe',
   },
   {
     id: '6',
@@ -100,7 +100,7 @@ export const shops: Shop[] = [
     followerCount: 4300,
     productCount: 34,
     isVerified: false,
-    location: 'Brooklyn, USA',
+    location: 'Masvingo, Zimbabwe',
   },
 ];
 

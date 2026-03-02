@@ -6,7 +6,7 @@ import { BarChart3, Package, ShoppingCart, TrendingUp, Settings, Plus } from "lu
 import { Link } from "react-router-dom";
 
 const stats = [
-  { label: "Total Sales", value: "KSh 0", icon: TrendingUp },
+  { label: "Total Sales", value: "$0", icon: TrendingUp },
   { label: "Orders", value: "0", icon: ShoppingCart },
   { label: "Products", value: "0", icon: Package },
   { label: "Views", value: "0", icon: BarChart3 },

@@ -5,32 +5,32 @@ import { Star, Quote } from "lucide-react";
 
 const stories = [
   {
-    name: "Amina Hassan",
-    shop: "Amina's Fabrics",
+    name: "Rumbidzai Moyo",
+    shop: "Rumbi's Fabrics",
     image: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200&h=200&fit=crop&crop=face",
-    quote: "Tenga helped me grow my fabric business from a small stall to serving customers across the country. My sales tripled in just 6 months!",
-    revenue: "KSh 450,000/mo",
+    quote: "Tenga helped me grow my fabric business from a small stall in Mbare to serving customers across the country. My sales tripled in just 6 months!",
+    revenue: "$4,500/mo",
   },
   {
-    name: "David Ochieng",
-    shop: "TechGadgets KE",
+    name: "Tatenda Chikowore",
+    shop: "TechGadgets ZW",
     image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=face",
     quote: "The seller dashboard makes it so easy to manage orders and inventory. I can focus on sourcing great products instead of logistics.",
-    revenue: "KSh 1,200,000/mo",
+    revenue: "$12,000/mo",
   },
   {
-    name: "Grace Wanjiku",
+    name: "Chiedza Manyika",
     shop: "Nature's Glow Beauty",
     image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face",
     quote: "Starting on Tenga was the best decision for my beauty brand. The platform's reach connected me with customers I never could have found on my own.",
-    revenue: "KSh 280,000/mo",
+    revenue: "$2,800/mo",
   },
   {
-    name: "James Mwangi",
-    shop: "Mwangi Fresh Produce",
+    name: "Tendai Mwangi",
+    shop: "Tendai Fresh Produce",
     image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
-    quote: "From farm to table — Tenga gave my fresh produce business a digital storefront. Now I deliver to hundreds of homes every week.",
-    revenue: "KSh 600,000/mo",
+    quote: "From farm to table — Tenga gave my fresh produce business a digital storefront. Now I deliver to hundreds of homes every week in Harare.",
+    revenue: "$6,000/mo",
   },
 ];
 
@@ -41,7 +41,7 @@ const SuccessStoriesPage = () => {
       <main className="flex-1 container py-12 max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-3xl md:text-4xl font-bold mb-3">Seller Success Stories</h1>
-          <p className="text-muted-foreground max-w-xl mx-auto">See how entrepreneurs are building thriving businesses on Tenga.</p>
+          <p className="text-muted-foreground max-w-xl mx-auto">See how Zimbabwean entrepreneurs are building thriving businesses on Tenga.</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">

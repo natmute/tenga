@@ -16,7 +16,7 @@ const plans = [
   },
   {
     name: "Growth",
-    price: "KSh 1,500/mo",
+    price: "$15/mo",
     description: "For growing businesses",
     features: ["Up to 100 products", "Advanced analytics", "Priority support", "1.5% commission per sale", "Custom shop branding", "Promotional tools"],
     cta: "Start Free Trial",

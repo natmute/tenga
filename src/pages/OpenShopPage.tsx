@@ -206,7 +206,7 @@ const OpenShopPage = () => {
                   <Label htmlFor="location">Location *</Label>
                   <Input
                     id="location"
-                    placeholder="e.g. Nairobi, Kenya"
+                    placeholder="e.g. Harare, Zimbabwe"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="mt-1.5"
@@ -229,7 +229,7 @@ const OpenShopPage = () => {
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="+254 700 000 000"
+                      placeholder="+263 77 000 0000"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="mt-1.5"

@@ -44,14 +44,14 @@ const ContactUsPage = () => {
               <Phone className="h-5 w-5 text-primary mt-0.5" />
               <div>
                 <h3 className="font-semibold">Phone</h3>
-                <p className="text-sm text-muted-foreground">+1 (800) 123-4567</p>
+                <p className="text-sm text-muted-foreground">+263 77 123 4567</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <MapPin className="h-5 w-5 text-primary mt-0.5" />
               <div>
                 <h3 className="font-semibold">Address</h3>
-                <p className="text-sm text-muted-foreground">123 Market Street, Nairobi, Kenya</p>
+                <p className="text-sm text-muted-foreground">14 Samora Machel Avenue, Harare, Zimbabwe</p>
               </div>
             </div>
           </div>
