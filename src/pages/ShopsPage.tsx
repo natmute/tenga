@@ -88,9 +88,15 @@ const ShopsPage = () => {
           ratingByShop[shopId].count += 1;
         });
       }
+      const { data: followerRows } = await supabase.from('shop_followers').select('shop_id').in('shop_id', shopIds);
+      const followerCountByShop: Record<string, number> = {};
+      (followerRows ?? []).forEach((r) => {
+        followerCountByShop[r.shop_id] = (followerCountByShop[r.shop_id] ?? 0) + 1;
+      });
       const approvedShops: Shop[] = shopRows.map((row) => {
         const mapped = mapDbShopToShop(row);
         mapped.productCount = countByShop[row.id] ?? 0;
+        mapped.followerCount = followerCountByShop[row.id] ?? 0;
         const agg = ratingByShop[row.id];
         if (agg && agg.count > 0) {
           mapped.rating = Math.round((agg.sum / agg.count) * 10) / 10;

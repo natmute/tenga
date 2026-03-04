@@ -13,6 +13,7 @@ import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import { shops as mockShops, getProductsByShopId } from '@/data/mockData';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import type { Shop, Product } from '@/types';
 
 const PLACEHOLDER_LOGO = 'https://placehold.co/200x200?text=Shop';
@@ -93,7 +94,11 @@ function mapDbProductToProduct(row: {
 const ShopPage = () => {
   const { slug: slugParam } = useParams();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [rating, setRating] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +132,37 @@ const ShopPage = () => {
     );
   };
 
+  const handleFollow = async () => {
+    if (!shop) return;
+    if (!user) {
+      toast({ title: 'Sign in to follow', description: 'Create an account or sign in to follow shops.', variant: 'destructive' });
+      return;
+    }
+    try {
+      if (isFollowing) {
+        const { error } = await supabase
+          .from('shop_followers')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('shop_id', shop.id);
+        if (error) throw error;
+        setIsFollowing(false);
+        setFollowerCount((c) => Math.max(0, c - 1));
+        toast({ title: 'Unfollowed', description: `You unfollowed ${shop.name}.` });
+      } else {
+        const { error } = await supabase
+          .from('shop_followers')
+          .insert({ user_id: user.id, shop_id: shop.id });
+        if (error) throw error;
+        setIsFollowing(true);
+        setFollowerCount((c) => c + 1);
+        toast({ title: 'Following', description: `You are now following ${shop.name}.` });
+      }
+    } catch (e) {
+      toast({ title: 'Could not update follow', description: (e as Error).message, variant: 'destructive' });
+    }
+  };
+
   useEffect(() => {
     if (!slugParam) {
       setLoading(false);
@@ -141,15 +177,57 @@ const ShopPage = () => {
         .maybeSingle();
 
       if (shopRow) {
-        setShop(mapDbShopToShop(shopRow));
+        const mapped = mapDbShopToShop(shopRow);
+        setShop(mapped);
         const { data: productRows } = await supabase
           .from('products')
           .select('*, product_images(image_url)')
           .eq('shop_id', shopRow.id);
-        setProducts((productRows ?? []).map(mapDbProductToProduct));
+        const productList = (productRows ?? []).map(mapDbProductToProduct);
+        setProducts(productList);
+        const productIds = (productRows ?? []).map((p) => p.id);
+        if (productIds.length > 0) {
+          const { data: reviewRows } = await supabase
+            .from('reviews')
+            .select('rating')
+            .in('product_id', productIds);
+          const n = (reviewRows ?? []).length;
+          if (n > 0) {
+            const sum = (reviewRows ?? []).reduce((a, r) => a + (r.rating ?? 0), 0);
+            setRating(Math.round((sum / n) * 10) / 10);
+            setReviewCount(n);
+          } else {
+            setRating(0);
+            setReviewCount(0);
+          }
+        } else {
+          setRating(0);
+          setReviewCount(0);
+        }
+        const { count } = await supabase
+          .from('shop_followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('shop_id', shopRow.id);
+        setFollowerCount(typeof count === 'number' ? count : 0);
+        const uid = (await supabase.auth.getUser()).data.user?.id;
+        if (uid) {
+          const { data: followRow } = await supabase
+            .from('shop_followers')
+            .select('shop_id')
+            .eq('user_id', uid)
+            .eq('shop_id', shopRow.id)
+            .maybeSingle();
+          setIsFollowing(!!followRow);
+        } else {
+          setIsFollowing(false);
+        }
       } else {
         const mockShop = mockShops.find((s) => s.slug === slugParam);
         setShop(mockShop ?? null);
+        setFollowerCount(mockShop?.followerCount ?? 0);
+        setRating(mockShop?.rating ?? 0);
+        setReviewCount(mockShop?.reviewCount ?? 0);
+        setIsFollowing(false);
         setProducts(mockShop ? getProductsByShopId(mockShop.id) : []);
       }
       setLoading(false);
@@ -267,7 +345,8 @@ const ShopPage = () => {
                   className="flex items-center gap-2"
                 >
                   <Button
-                    onClick={() => setIsFollowing(!isFollowing)}
+                    type="button"
+                    onClick={handleFollow}
                     className={isFollowing ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' : 'bg-gradient-primary'}
                   >
                     {isFollowing ? 'Following' : 'Follow'}
@@ -299,17 +378,17 @@ const ShopPage = () => {
                 className="mt-4 flex items-center gap-6"
               >
                 <div className="text-center">
-                  <div className="text-xl font-bold">{shop.productCount}</div>
+                  <div className="text-xl font-bold">{products.length}</div>
                   <div className="text-xs text-muted-foreground">Products</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold">{(shop.followerCount / 1000).toFixed(1)}K</div>
+                  <div className="text-xl font-bold">{followerCount >= 1000 ? `${(followerCount / 1000).toFixed(1)}K` : followerCount}</div>
                   <div className="text-xs text-muted-foreground">Followers</div>
                 </div>
                 <div className="flex items-center gap-1">
                   <Star className="h-5 w-5 fill-warning text-warning" />
-                  <span className="text-xl font-bold">{shop.rating}</span>
-                  <span className="text-xs text-muted-foreground">({shop.reviewCount} reviews)</span>
+                  <span className="text-xl font-bold">{rating}</span>
+                  <span className="text-xs text-muted-foreground">({reviewCount} reviews)</span>
                 </div>
               </motion.div>
             </div>

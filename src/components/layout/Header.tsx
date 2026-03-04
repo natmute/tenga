@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShoppingBag, User, Menu, X, Heart, Sun, Moon, LogOut, Shield, Store, Package } from 'lucide-react';
+import { Search, ShoppingBag, User, Menu, X, Heart, Sun, Moon, LogOut, Shield, Store, Package, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCart } from '@/context/CartContext';
@@ -47,6 +47,7 @@ const Header = () => {
     { name: 'Shops', href: '/shops' },
     { name: 'Categories', href: '/categories' },
     { name: 'Trending', href: '/trending' },
+    { name: 'Following', href: '/following' },
   ];
 
   const handleSearch = (e: React.FormEvent) => {
@@ -180,6 +181,12 @@ const Header = () => {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link to="/following">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Following
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link to="/seller-dashboard">
                     <Store className="h-4 w-4 mr-2" />
                     Seller dashboard
@@ -268,14 +275,24 @@ const Header = () => {
                 )}
               </Link>
               {user && (
-                <Link
-                  to="/orders"
-                  className="px-4 py-3 text-base font-medium text-foreground rounded-lg hover:bg-secondary transition-colors flex items-center gap-2"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Package className="h-4 w-4" />
-                  Order history
-                </Link>
+                <>
+                  <Link
+                    to="/orders"
+                    className="px-4 py-3 text-base font-medium text-foreground rounded-lg hover:bg-secondary transition-colors flex items-center gap-2"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Package className="h-4 w-4" />
+                    Order history
+                  </Link>
+                  <Link
+                    to="/following"
+                    className="px-4 py-3 text-base font-medium text-foreground rounded-lg hover:bg-secondary transition-colors flex items-center gap-2"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Following
+                  </Link>
+                </>
               )}
               {isAdmin && (
                 <Link
