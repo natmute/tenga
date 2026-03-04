@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Store, ImagePlus, Tags, FileCheck, ChevronLeft, ChevronRight,
-  Check, Upload, Sparkles
+  Check, Upload, Sparkles, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import { categories } from '@/data/mockData';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const STEPS = [
   { id: 'details', label: 'Shop Details', icon: Store },
@@ -22,9 +24,22 @@ const STEPS = [
   { id: 'review', label: 'Review & Submit', icon: FileCheck },
 ];
 
+function slugFromName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+}
+
 const OpenShopPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [emailSendFailed, setEmailSendFailed] = useState(false);
 
   // Form state
   const [shopName, setShopName] = useState('');
@@ -35,20 +50,48 @@ const OpenShopPage = () => {
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleImagePreview = (
     e: React.ChangeEvent<HTMLInputElement>,
-    setter: (url: string | null) => void
+    setter: (url: string | null) => void,
+    setFile: (f: File | null) => void
   ) => {
     const file = e.target.files?.[0];
     if (file) {
+      setFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setter(reader.result as string);
       reader.readAsDataURL(file);
+    } else {
+      setter(null);
+      setFile(null);
     }
+  };
+
+  const getExtension = (filename: string) => {
+    const parts = filename.split('.');
+    return parts.length > 1 ? parts.pop()!.toLowerCase() : 'jpg';
+  };
+
+  const uploadShopImage = async (
+    file: File,
+    userId: string,
+    type: 'logo' | 'banner'
+  ): Promise<{ url: string } | { error: string }> => {
+    const ext = getExtension(file.name);
+    const path = `shops/${userId}/${Date.now()}-${type}.${ext}`;
+    const { error } = await supabase.storage.from('shop-assets').upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
+    if (error) return { error: error.message };
+    const { data } = supabase.storage.from('shop-assets').getPublicUrl(path);
+    return { url: data.publicUrl };
   };
 
   const canProceed = () => {
@@ -56,7 +99,7 @@ const OpenShopPage = () => {
       case 0:
         return shopName.trim() && shopBio.trim() && location.trim() && email.trim();
       case 1:
-        return true; // logo/banner are optional
+        return !!logoFile && !!bannerFile; // logo and banner required
       case 2:
         return !!selectedCategory;
       case 3:
@@ -66,8 +109,99 @@ const OpenShopPage = () => {
     }
   };
 
-  const handleSubmit = () => {
-    setSubmitted(true);
+  const handleSubmit = async () => {
+    if (!user) {
+      setSubmitError('Please sign in to open a shop.');
+      navigate('/auth');
+      return;
+    }
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      // Resolve category_id: match by slug from mock data first (DB may use slug), then by name
+      const categorySlug = categories.find((c) => c.name === selectedCategory)?.slug;
+      let categoryId: string | null = null;
+      if (categorySlug) {
+        const { data: bySlug } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('slug', categorySlug)
+          .maybeSingle();
+        categoryId = bySlug?.id ?? null;
+      }
+      if (!categoryId) {
+        const { data: byName } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('name', selectedCategory)
+          .maybeSingle();
+        categoryId = byName?.id ?? null;
+      }
+
+      const slug = slugFromName(shopName);
+      if (!slug) {
+        setSubmitError('Shop name must contain at least one letter or number.');
+        setSubmitting(false);
+        return;
+      }
+
+      // Upload logo and banner to storage if user selected files; don't create shop unless uploads succeed
+      let logoUrl: string | null = null;
+      let bannerUrl: string | null = null;
+      if (logoFile) {
+        const result = await uploadShopImage(logoFile, user.id, 'logo');
+        if ('error' in result) {
+          setSubmitError(`Failed to upload logo: ${result.error}`);
+          setSubmitting(false);
+          return;
+        }
+        logoUrl = result.url;
+      }
+      if (bannerFile) {
+        const result = await uploadShopImage(bannerFile, user.id, 'banner');
+        if ('error' in result) {
+          setSubmitError(`Failed to upload banner: ${result.error}`);
+          setSubmitting(false);
+          return;
+        }
+        bannerUrl = result.url;
+      }
+
+      const { error } = await supabase.from('shops').insert({
+        owner_id: user.id,
+        name: shopName.trim(),
+        slug,
+        bio: shopBio.trim() || null,
+        location: location.trim() || null,
+        category_id: categoryId,
+        logo: logoUrl,
+        banner: bannerUrl,
+        is_verified: false,
+        rating: null,
+        review_count: null,
+        follower_count: null,
+        product_count: null,
+      });
+
+      if (error) {
+        setSubmitError(error.message || 'Failed to create shop. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      // Send confirmation email via Edge Function (Resend)
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-shop-confirmation', {
+        body: { email: email.trim(), shopName: shopName.trim() },
+      });
+      const emailFailed = !!emailError || (emailData && typeof emailData === 'object' && 'error' in emailData);
+      setEmailSendFailed(emailFailed);
+
+      setSubmitted(true);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -100,6 +234,23 @@ const OpenShopPage = () => {
           >
             We'll review <strong>{shopName}</strong> and notify you at <strong>{email}</strong> once it's live. This usually takes less than 24 hours.
           </motion.p>
+          {emailSendFailed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="mt-4 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-left text-sm text-amber-800 dark:text-amber-200"
+            >
+              <p className="font-medium">Confirmation email was not sent</p>
+              <p className="mt-1">Check your spam folder. If it’s still missing, the email sender isn’t set up yet:</p>
+              <ol className="mt-2 list-inside list-decimal space-y-1 text-xs">
+                <li>Sign up at <a href="https://resend.com" target="_blank" rel="noreferrer" className="underline">resend.com</a> and create an API key.</li>
+                <li>In Supabase Dashboard → Project Settings → Edge Functions, add secret <strong>RESEND_API_KEY</strong>.</li>
+                <li>Deploy the function: <code className="rounded bg-black/10 px-1">npx supabase functions deploy send-shop-confirmation</code></li>
+              </ol>
+              <p className="mt-2 text-xs">See <code className="rounded bg-black/10 px-1">supabase/functions/README.md</code> for full steps.</p>
+            </motion.div>
+          )}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -243,8 +394,8 @@ const OpenShopPage = () => {
               <div className="space-y-6">
                 {/* Logo */}
                 <div>
-                  <Label>Shop Logo</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Square image recommended (min 200×200px)</p>
+                  <Label>Shop Logo *</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Required. Square image recommended (min 200×200px)</p>
                   <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-secondary/50 p-6 transition-colors hover:border-primary/50 hover:bg-secondary">
                     {logoPreview ? (
                       <img src={logoPreview} alt="Logo preview" className="h-24 w-24 rounded-xl object-cover" />
@@ -258,15 +409,15 @@ const OpenShopPage = () => {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => handleImagePreview(e, setLogoPreview)}
+                      onChange={(e) => handleImagePreview(e, setLogoPreview, setLogoFile)}
                     />
                   </label>
                 </div>
 
                 {/* Banner */}
                 <div>
-                  <Label>Shop Banner</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Wide image recommended (min 1200×400px)</p>
+                  <Label>Shop Banner *</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Required. Wide image recommended (min 1200×400px)</p>
                   <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-secondary/50 p-8 transition-colors hover:border-primary/50 hover:bg-secondary">
                     {bannerPreview ? (
                       <img src={bannerPreview} alt="Banner preview" className="h-32 w-full rounded-lg object-cover" />
@@ -280,7 +431,7 @@ const OpenShopPage = () => {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => handleImagePreview(e, setBannerPreview)}
+                      onChange={(e) => handleImagePreview(e, setBannerPreview, setBannerFile)}
                     />
                   </label>
                 </div>
@@ -311,6 +462,18 @@ const OpenShopPage = () => {
 
             {currentStep === 3 && (
               <div className="space-y-6">
+                {!user && (
+                  <div className="flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>Please sign in to submit your shop application.</span>
+                  </div>
+                )}
+                {submitError && (
+                  <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
                 <h3 className="text-lg font-semibold">Review your shop</h3>
 
                 {/* Preview card */}
@@ -384,10 +547,10 @@ const OpenShopPage = () => {
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!canProceed()}
+              disabled={!canProceed() || submitting}
               className="bg-gradient-primary"
             >
-              Submit Application
+              {submitting ? 'Submitting...' : 'Submit Application'}
             </Button>
           )}
         </div>
