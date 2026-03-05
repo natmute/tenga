@@ -21,6 +21,7 @@ import OpenShopPage from "./pages/OpenShopPage";
 import AuthPage from "./pages/AuthPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 import ContactUsPage from "./pages/ContactUsPage";
+import ContactSalesPage from "./pages/ContactSalesPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import SellerDashboardPage from "./pages/SellerDashboardPage";
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/help-center" element={<HelpCenterPage />} />
               <Route path="/contact-us" element={<ContactUsPage />} />
+              <Route path="/contact-sales" element={<ContactSalesPage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="/terms-of-service" element={<TermsOfServicePage />} />
               <Route path="/seller-dashboard" element={<SellerDashboardPage />} />

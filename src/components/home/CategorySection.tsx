@@ -38,7 +38,7 @@ const CategorySection = () => {
               transition={{ delay: index * 0.05 }}
             >
               <Link
-                to={`/category/${category.slug}`}
+                to={`/discover?category=${encodeURIComponent(category.name)}`}
                 className="group flex flex-col items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-background p-4 sm:p-6 shadow-card transition-all hover:shadow-card-hover active:scale-[0.98] min-h-[100px] sm:min-h-0 justify-center"
               >
                 <span className="text-3xl sm:text-4xl">{category.icon}</span>

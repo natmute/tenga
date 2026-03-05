@@ -65,7 +65,7 @@ const PricingPage = () => {
                   ))}
                 </ul>
                 <Button className="w-full" variant={plan.popular ? "default" : "outline"} asChild>
-                  <Link to="/open-shop">{plan.cta}</Link>
+                  <Link to={plan.cta === "Contact Sales" ? "/contact-sales" : "/open-shop"}>{plan.cta}</Link>
                 </Button>
               </CardContent>
             </Card>
