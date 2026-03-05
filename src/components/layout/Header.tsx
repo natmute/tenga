@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ShoppingBag, User, Menu, X, Heart, Sun, Moon, LogOut, Shield, Store, Package, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,21 @@ import {
 
 const Header = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [hasShop, setHasShop] = useState(false);
+
+  useEffect(() => {
+    const path = location.pathname;
+    const q = searchParams.get('q') ?? '';
+    if (path === '/search' || path === '/discover') {
+      setSearchQuery(q);
+    }
+  }, [location.pathname, searchParams.get('q')]);
   const { totalItems, setIsCartOpen } = useCart();
   const { wishlistCount } = useWishlist();
   const { theme, toggleTheme } = useTheme();
@@ -60,9 +70,10 @@ const Header = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/discover?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
+    const q = searchQuery.trim();
+    if (q) {
+      navigate(`/search?q=${encodeURIComponent(q)}`);
+      setSearchQuery(q);
       setIsSearchOpen(false);
     }
   };
@@ -104,15 +115,17 @@ const Header = () => {
         </nav>
 
         {/* Search Bar - Desktop / Tablet */}
-        <form onSubmit={handleSearch} className="hidden flex-1 max-w-md md:flex min-w-0">
-          <div className="relative w-full">
+        <form onSubmit={handleSearch} className="hidden flex-1 max-w-md md:flex min-w-0 md:min-w-[160px] items-center" role="search">
+          <div className="relative w-full min-w-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="Search products, shops, categories..."
+              type="search"
+              placeholder="Search products, shops..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
               className="w-full pl-10 pr-3 py-2 sm:py-2.5 bg-secondary border-0 focus-visible:ring-1 focus-visible:ring-primary text-base sm:text-sm"
+              aria-label="Search products and shops"
             />
           </div>
         </form>
@@ -241,17 +254,20 @@ const Header = () => {
             exit={{ height: 0, opacity: 0 }}
             className="border-t border-border md:hidden overflow-hidden"
           >
-            <form onSubmit={handleSearch} className="container py-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <form onSubmit={handleSearch} className="container py-3 px-4 sm:px-6 flex gap-2">
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder="Search products, shops, categories..."
+                  type="search"
+                  placeholder="Search products, shops..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 bg-secondary border-0"
+                  className="w-full pl-10 pr-3 bg-secondary border-0"
                   autoFocus
+                  aria-label="Search products and shops"
                 />
               </div>
+              <Button type="submit" size="sm">Search</Button>
             </form>
           </motion.div>
         )}

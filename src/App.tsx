@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import ShopsPage from "./pages/ShopsPage";
 import ShopPage from "./pages/ShopPage";
 import DiscoverPage from "./pages/DiscoverPage";
+import SearchPage from "./pages/SearchPage";
 import ProductPage from "./pages/ProductPage";
 import ReviewPage from "./pages/ReviewPage";
 import CategoriesPage from "./pages/CategoriesPage";
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/shops" element={<ShopsPage />} />
               <Route path="/shop/:slug" element={<ShopPage />} />
               <Route path="/discover" element={<DiscoverPage />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/product/:slug" element={<ProductPage />} />
               <Route path="/product/:slug/reviews" element={<ReviewPage />} />
               <Route path="/categories" element={<CategoriesPage />} />
