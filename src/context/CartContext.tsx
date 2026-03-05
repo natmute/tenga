@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CartItem, Product, Shop } from '@/types';
 import { getShopById } from '@/data/mockData';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 const PLACEHOLDER_IMAGE = 'https://placehold.co/600x600?text=Product';
@@ -100,6 +102,8 @@ function mapCartRowToItem(row: CartRow): CartItem | null {
 
 export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartLoaded, setCartLoaded] = useState(false);
@@ -131,6 +135,15 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [user, loadCartFromSupabase]);
 
   const addToCart = (product: Product, quantity = 1, variants?: Record<string, string>, shopParam?: Shop) => {
+    if (!user) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in or create an account to add items to your cart.',
+        variant: 'destructive',
+      });
+      navigate('/auth');
+      return;
+    }
     const shop = shopParam ?? getShopById(product.shopId);
     if (!shop) return;
 

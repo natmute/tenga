@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 const WISHLIST_STORAGE_KEY = 'shop-social-wishlist';
@@ -17,6 +19,8 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 
 export const WishlistProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -66,19 +70,24 @@ export const WishlistProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const addToWishlist = useCallback(
     (productId: string) => {
+      if (!user) {
+        toast({
+          title: 'Sign in required',
+          description: 'Please sign in or create an account to add items to your wishlist.',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
+      }
       if (wishlistIds.includes(productId)) return;
       const next = [...wishlistIds, productId];
       setWishlistIds(next);
-      if (user) {
-        supabase
-          .from('product_likes')
-          .insert({ user_id: user.id, product_id: productId })
-          .then(() => {});
-      } else {
-        persistGuest(next);
-      }
+      supabase
+        .from('product_likes')
+        .insert({ user_id: user.id, product_id: productId })
+        .then(() => {});
     },
-    [user, wishlistIds, persistGuest]
+    [user, wishlistIds, toast, navigate]
   );
 
   const removeFromWishlist = useCallback(

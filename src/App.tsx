@@ -41,13 +41,13 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <TooltipProvider>
-        <CartProvider>
-          <WishlistProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <ScrollToTop />
-            <Routes>
+        <BrowserRouter>
+          <CartProvider>
+            <WishlistProvider>
+              <Toaster />
+              <Sonner />
+              <ScrollToTop />
+              <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/shops" element={<ShopsPage />} />
               <Route path="/shop/:slug" element={<ShopPage />} />
@@ -76,10 +76,10 @@ const App = () => (
               <Route path="/profile" element={<ProfilePage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-          </WishlistProvider>
-        </CartProvider>
+              </Routes>
+            </WishlistProvider>
+          </CartProvider>
+        </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
