@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/hooks/use-toast';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
 import { getProductById, getShopById } from '@/data/mockData';
 import type { Product, Shop } from '@/types';
 import { cn } from '@/lib/utils';

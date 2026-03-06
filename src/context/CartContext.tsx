@@ -110,7 +110,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const loadCartFromSupabase = useCallback(async () => {
     if (!user) return;
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('cart_items')
       .select('*, products(*, product_images(image_url), shops(*))')
       .eq('user_id', user.id);
@@ -159,7 +159,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const newQty = newItems[existingItemIndex].quantity + quantity;
         newItems[existingItemIndex] = { ...newItems[existingItemIndex], quantity: newQty };
         if (user && typeof newItems[existingItemIndex].id === 'string' && newItems[existingItemIndex].id.length === 36) {
-          (supabase as any)
+          supabase
             .from('cart_items')
             .update({ quantity: newQty })
             .eq('id', newItems[existingItemIndex].id)
@@ -176,7 +176,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         selectedVariants: variants,
       };
       if (user) {
-        (supabase as any)
+        supabase
           .from('cart_items')
           .insert({
             user_id: user.id,
@@ -186,7 +186,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           })
           .select('id')
           .single()
-          .then(({ data: row }: any) => {
+          .then(({ data: row }) => {
             if (row) {
               setItems((prev) =>
                 prev.map((item) =>
@@ -203,7 +203,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const removeFromCart = (itemId: string) => {
     if (user && itemId.length === 36 && !itemId.startsWith('temp-')) {
-      (supabase as any).from('cart_items').delete().eq('id', itemId).eq('user_id', user.id).then(() => {});
+      supabase.from('cart_items').delete().eq('id', itemId).eq('user_id', user.id).then(() => {});
     }
     setItems((prev) => prev.filter((item) => item.id !== itemId));
   };
@@ -217,7 +217,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       prev.map((item) => {
         if (item.id !== itemId) return item;
         if (user && itemId.length === 36 && !itemId.startsWith('temp-')) {
-          (supabase as any).from('cart_items').update({ quantity }).eq('id', itemId).eq('user_id', user.id).then(() => {});
+          supabase.from('cart_items').update({ quantity }).eq('id', itemId).eq('user_id', user.id).then(() => {});
         }
         return { ...item, quantity };
       })
@@ -226,7 +226,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const clearCart = () => {
     if (user) {
-      (supabase as any).from('cart_items').delete().eq('user_id', user.id).then(() => {});
+      supabase.from('cart_items').delete().eq('user_id', user.id).then(() => {});
     }
     setItems([]);
   };

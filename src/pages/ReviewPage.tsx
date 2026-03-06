@@ -13,7 +13,7 @@ import { products, getShopById } from '@/data/mockData';
 import { getReviewsByProductId } from '@/data/reviewsData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
 import type { Product, Shop } from '@/types';
 import { cn } from '@/lib/utils';
 

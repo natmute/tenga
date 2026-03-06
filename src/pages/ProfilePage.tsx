@@ -55,13 +55,13 @@ const ProfilePage = () => {
       return;
     }
     (async () => {
-      const { data: profileData } = await (supabase as any)
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .or(`id.eq.${user.id},user_id.eq.${user.id}`)
         .maybeSingle();
 
-      const row = profileData as unknown as ProfileRow | null;
+      const row = profileData as ProfileRow | null;
       setProfile(row ?? null);
       if (row) {
         setEditName(row.full_name ?? '');
@@ -72,7 +72,7 @@ const ProfilePage = () => {
         setEditPhone('');
       }
 
-      const { data: shopData } = await (supabase as any)
+      const { data: shopData } = await supabase
         .from('shops')
         .select('id')
         .eq('owner_id', user.id)
@@ -89,9 +89,9 @@ const ProfilePage = () => {
     const phone = editPhone.trim() || null;
 
     if (profile?.id) {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('profiles')
-        .update({ full_name: fullName, phone })
+        .update({ full_name: fullName, phone } as Record<string, unknown>)
         .eq('id', profile.id);
       setSaving(false);
       if (error) {
@@ -100,19 +100,19 @@ const ProfilePage = () => {
       }
       setProfile((prev) => (prev ? { ...prev, full_name: fullName, phone } : null));
     } else {
-      const { error } = await (supabase as any).from('profiles').insert({
+      const { error } = await supabase.from('profiles').insert({
         user_id: user.id,
         full_name: fullName,
         phone: phone || null,
         username: user.email?.replace(/@.*/, '') ?? `user_${user.id.slice(0, 8)}`,
-      });
+      } as Record<string, unknown>);
       setSaving(false);
       if (error) {
         toast({ title: 'Could not save profile', description: error.message, variant: 'destructive' });
         return;
       }
-      const { data } = await (supabase as any).from('profiles').select('*').eq('user_id', user.id).maybeSingle();
-      setProfile((data as unknown as ProfileRow) ?? null);
+      const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
+      setProfile((data as ProfileRow) ?? null);
     }
     setEditing(false);
     toast({ title: 'Profile updated' });

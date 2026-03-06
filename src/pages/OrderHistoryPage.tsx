@@ -8,35 +8,13 @@ import CartDrawer from '@/components/layout/CartDrawer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 
-type OrderRow = {
-  id: string;
-  user_id: string;
-  shop_id: string;
-  total: number;
-  status: string;
-  order_number: string;
-  customer_name: string | null;
-  customer_email: string | null;
-  customer_phone: string | null;
-  shipping_address: string | null;
-  shipping_city: string | null;
-  shipping_state: string | null;
-  shipping_zip_code: string | null;
-  shipping_country: string | null;
-  shipping_method: string | null;
-  created_at: string;
-  order_items?: (OrderItemRow & { products?: { name: string; slug: string } | null })[];
+type OrderRow = Tables<'orders'> & {
+  order_items?: (Tables<'order_items'> & { products?: { name: string; slug: string } | null })[];
   shops?: { name: string } | null;
-};
-type OrderItemRow = {
-  id: string;
-  order_id: string;
-  product_id: string;
-  quantity: number;
-  price: number;
 };
 
 const OrderHistoryPage = () => {
