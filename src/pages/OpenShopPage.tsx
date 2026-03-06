@@ -15,7 +15,7 @@ import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import { categories } from '@/data/mockData';
 import { useAuth } from '@/hooks/useAuth';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
 
 const STEPS = [
   { id: 'details', label: 'Shop Details', icon: Store },

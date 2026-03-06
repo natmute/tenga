@@ -12,7 +12,7 @@ import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import { shops as mockShops, getProductsByShopId } from '@/data/mockData';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import type { Shop, Product } from '@/types';
 

@@ -10,7 +10,7 @@ import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/product/ProductCard';
 import FilterSheet, { FilterState } from '@/components/filters/FilterSheet';
 import { products as mockProducts, categories, getShopById } from '@/data/mockData';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
 import type { Product, Shop } from '@/types';
 import { cn } from '@/lib/utils';
 

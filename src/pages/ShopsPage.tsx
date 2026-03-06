@@ -7,7 +7,7 @@ import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import ShopCard from '@/components/shop/ShopCard';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
 import { shops as mockShops } from '@/data/mockData';
 import type { Shop } from '@/types';
 import { cn } from '@/lib/utils';

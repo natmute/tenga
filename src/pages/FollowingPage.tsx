@@ -7,7 +7,7 @@ import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import ShopCard from '@/components/shop/ShopCard';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import type { Shop } from '@/types';

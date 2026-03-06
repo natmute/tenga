@@ -37,11 +37,11 @@ export const WishlistProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const loadFromSupabase = useCallback(async () => {
     if (!user) return;
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from('product_likes')
       .select('product_id')
       .eq('user_id', user.id);
-    const ids = (data ?? []).map((row: any) => row.product_id);
+    const ids = (data ?? []).map((row) => row.product_id);
     setWishlistIds(ids);
     setLoaded(true);
   }, [user]);
@@ -82,7 +82,7 @@ export const WishlistProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (wishlistIds.includes(productId)) return;
       const next = [...wishlistIds, productId];
       setWishlistIds(next);
-      (supabase as any)
+      supabase
         .from('product_likes')
         .insert({ user_id: user.id, product_id: productId })
         .then(() => {});
@@ -95,7 +95,7 @@ export const WishlistProvider: React.FC<{ children: ReactNode }> = ({ children }
       const next = wishlistIds.filter((id) => id !== productId);
       setWishlistIds(next);
       if (user) {
-        (supabase as any)
+        supabase
           .from('product_likes')
           .delete()
           .eq('user_id', user.id)

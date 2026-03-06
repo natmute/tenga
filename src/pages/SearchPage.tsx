@@ -11,7 +11,7 @@ import ProductCard from '@/components/product/ProductCard';
 import ShopCard from '@/components/shop/ShopCard';
 import { categories as mockCategories } from '@/data/mockData';
 import { products as mockProducts, shops as mockShops, getShopById } from '@/data/mockData';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
 import type { Product, Shop } from '@/types';
 
 const PLACEHOLDER_IMAGE = 'https://placehold.co/600x600?text=Product';

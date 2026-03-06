@@ -7,39 +7,557 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
-      profiles: {
+      cart_items: {
         Row: {
-          avatar_url: string | null
-          created_at: string
-          full_name: string | null
           id: string
-          updated_at: string
-          user_id: string
+          user_id: string | null
+          product_id: string | null
+          quantity: number
+          selected_variants: Json | null
+          created_at: string | null
         }
         Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          full_name?: string | null
           id?: string
-          updated_at?: string
-          user_id: string
+          user_id?: string | null
+          product_id?: string | null
+          quantity: number
+          selected_variants?: Json | null
+          created_at?: string | null
         }
         Update: {
-          avatar_url?: string | null
-          created_at?: string
-          full_name?: string | null
           id?: string
-          updated_at?: string
-          user_id?: string
+          user_id?: string | null
+          product_id?: string | null
+          quantity?: number
+          selected_variants?: Json | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      categories: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          icon: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          icon?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          icon?: string | null
+          created_at?: string | null
         }
         Relationships: []
+      }
+      order_items: {
+        Row: {
+          id: string
+          order_id: string
+          product_id: string
+          quantity: number
+          price: number
+          selected_variants: Json | null
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          product_id: string
+          quantity: number
+          price: number
+          selected_variants?: Json | null
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          product_id?: string
+          quantity?: number
+          price?: number
+          selected_variants?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      orders: {
+        Row: {
+          id: string
+          user_id: string
+          shop_id: string
+          status: string | null
+          total: number
+          created_at: string | null
+          order_number: string | null
+          customer_name: string | null
+          customer_email: string | null
+          customer_phone: string | null
+          shipping_address: string | null
+          shipping_city: string | null
+          shipping_state: string | null
+          shipping_zip_code: string | null
+          shipping_country: string | null
+          shipping_method: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          shop_id: string
+          status?: string | null
+          total: number
+          created_at?: string | null
+          order_number?: string | null
+          customer_name?: string | null
+          customer_email?: string | null
+          customer_phone?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_state?: string | null
+          shipping_zip_code?: string | null
+          shipping_country?: string | null
+          shipping_method?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          shop_id?: string
+          status?: string | null
+          total?: number
+          created_at?: string | null
+          order_number?: string | null
+          customer_name?: string | null
+          customer_email?: string | null
+          customer_phone?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_state?: string | null
+          shipping_zip_code?: string | null
+          shipping_country?: string | null
+          shipping_method?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_shop_id_fkey"
+            columns: ["shop_id"]
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      product_images: {
+        Row: {
+          id: string
+          product_id: string | null
+          image_url: string
+          color: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          product_id?: string | null
+          image_url: string
+          color?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          product_id?: string | null
+          image_url?: string
+          color?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      product_likes: {
+        Row: {
+          user_id: string
+          product_id: string
+          created_at: string | null
+        }
+        Insert: {
+          user_id: string
+          product_id: string
+          created_at?: string | null
+        }
+        Update: {
+          user_id?: string
+          product_id?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_likes_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      product_variants: {
+        Row: {
+          id: string
+          product_id: string | null
+          name: string
+          type: string
+        }
+        Insert: {
+          id?: string
+          product_id?: string | null
+          name: string
+          type: string
+        }
+        Update: {
+          id?: string
+          product_id?: string | null
+          name?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      products: {
+        Row: {
+          id: string
+          shop_id: string
+          name: string
+          slug: string
+          price: number
+          original_price: number | null
+          description: string | null
+          category_id: string | null
+          in_stock: boolean | null
+          stock_count: number | null
+          rating: number | null
+          review_count: number | null
+          like_count: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          name: string
+          slug: string
+          price: number
+          original_price?: number | null
+          description?: string | null
+          category_id?: string | null
+          in_stock?: boolean | null
+          stock_count?: number | null
+          rating?: number | null
+          review_count?: number | null
+          like_count?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          name?: string
+          slug?: string
+          price?: number
+          original_price?: number | null
+          description?: string | null
+          category_id?: string | null
+          in_stock?: boolean | null
+          stock_count?: number | null
+          rating?: number | null
+          review_count?: number | null
+          like_count?: number | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_shop_id_fkey"
+            columns: ["shop_id"]
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      profiles: {
+        Row: {
+          id: string
+          user_id: string | null
+          username: string
+          full_name: string | null
+          avatar_url: string | null
+          bio: string | null
+          role: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          username: string
+          full_name?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          role?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          username?: string
+          full_name?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          role?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      review_images: {
+        Row: {
+          id: string
+          review_id: string | null
+          image_url: string
+        }
+        Insert: {
+          id?: string
+          review_id?: string | null
+          image_url: string
+        }
+        Update: {
+          id?: string
+          review_id?: string | null
+          image_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_images_review_id_fkey"
+            columns: ["review_id"]
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      reviews: {
+        Row: {
+          id: string
+          product_id: string | null
+          user_id: string | null
+          rating: number | null
+          comment: string | null
+          owner_reply: string | null
+          owner_replied_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          product_id?: string | null
+          user_id?: string | null
+          rating?: number | null
+          comment?: string | null
+          owner_reply?: string | null
+          owner_replied_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          product_id?: string | null
+          user_id?: string | null
+          rating?: number | null
+          comment?: string | null
+          owner_reply?: string | null
+          owner_replied_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      saved_products: {
+        Row: {
+          user_id: string
+          product_id: string
+          created_at: string | null
+        }
+        Insert: {
+          user_id: string
+          product_id: string
+          created_at?: string | null
+        }
+        Update: {
+          user_id?: string
+          product_id?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_products_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      shop_followers: {
+        Row: {
+          user_id: string
+          shop_id: string
+          created_at: string | null
+        }
+        Insert: {
+          user_id: string
+          shop_id: string
+          created_at?: string | null
+        }
+        Update: {
+          user_id?: string
+          shop_id?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_followers_shop_id_fkey"
+            columns: ["shop_id"]
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      shops: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          slug: string
+          logo: string | null
+          banner: string | null
+          bio: string | null
+          category_id: string | null
+          location: string | null
+          is_verified: boolean | null
+          rating: number | null
+          review_count: number | null
+          follower_count: number | null
+          product_count: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          owner_id: string
+          name: string
+          slug: string
+          logo?: string | null
+          banner?: string | null
+          bio?: string | null
+          category_id?: string | null
+          location?: string | null
+          is_verified?: boolean | null
+          rating?: number | null
+          review_count?: number | null
+          follower_count?: number | null
+          product_count?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          owner_id?: string
+          name?: string
+          slug?: string
+          logo?: string | null
+          banner?: string | null
+          bio?: string | null
+          category_id?: string | null
+          location?: string | null
+          is_verified?: boolean | null
+          rating?: number | null
+          review_count?: number | null
+          follower_count?: number | null
+          product_count?: number | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shops_category_id_fkey"
+            columns: ["category_id"]
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      variant_options: {
+        Row: {
+          id: string
+          variant_id: string | null
+          value: string
+        }
+        Insert: {
+          id?: string
+          variant_id?: string | null
+          value: string
+        }
+        Update: {
+          id?: string
+          variant_id?: string | null
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variant_options_variant_id_fkey"
+            columns: ["variant_id"]
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

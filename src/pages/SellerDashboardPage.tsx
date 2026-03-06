@@ -18,7 +18,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { db as supabase } from '@/integrations/supabase/client-untyped';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import {
   Package,
   Plus,
@@ -32,11 +33,11 @@ import {
   Mail,
 } from 'lucide-react';
 
-type Shop = Record<string, any>;
-type Product = Record<string, any>;
-type Review = Record<string, any> & { products?: { name: string } | null };
-type OrderRow = Record<string, any> & {
-  order_items?: (Record<string, any> & { products?: { name: string } | null })[];
+type Shop = Tables<'shops'>;
+type Product = Tables<'products'>;
+type Review = Tables<'reviews'> & { products?: { name: string } | null };
+type OrderRow = Tables<'orders'> & {
+  order_items?: (Tables<'order_items'> & { products?: { name: string } | null })[];
 };
 
 type CustomerProfile = { id: string; full_name: string | null; username: string };

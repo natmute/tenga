@@ -7,19 +7,10 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import { Store, Check, X, ShieldAlert, Loader2, Users, Shield, Trash2, ExternalLink } from 'lucide-react';
 
-type Shop = {
-  id: string;
-  name: string;
-  slug: string;
-  logo: string | null;
-  banner: string | null;
-  bio: string | null;
-  owner_id: string;
-  is_verified: boolean;
-  created_at: string | null;
-};
+type Shop = Tables<'shops'>;
 
 type ProfileRow = {
   id: string;
@@ -53,7 +44,7 @@ const AdminDashboardPage = () => {
       return;
     }
     (async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
@@ -67,8 +58,8 @@ const AdminDashboardPage = () => {
     if (profileRole !== 'admin') return;
     (async () => {
       const [pendingRes, allRes] = await Promise.all([
-        (supabase as any).from('shops').select('*').eq('is_verified', false).order('created_at', { ascending: false }),
-        (supabase as any).from('shops').select('*').order('created_at', { ascending: false }),
+        supabase.from('shops').select('*').eq('is_verified', false).order('created_at', { ascending: false }),
+        supabase.from('shops').select('*').order('created_at', { ascending: false }),
       ]);
       const pending = pendingRes.data ?? [];
       const all = allRes.data ?? [];
@@ -77,11 +68,11 @@ const AdminDashboardPage = () => {
       const ownerIds = [...new Set([...pending, ...all].map((s) => s.owner_id).filter(Boolean))] as string[];
       const ownerMap: Record<string, { full_name: string | null; username: string | null }> = {};
       if (ownerIds.length > 0) {
-        const { data: profiles } = await (supabase as any)
+        const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name, username')
           .in('id', ownerIds);
-        (profiles ?? []).forEach((row: any) => {
+        (profiles ?? []).forEach((row: { id: string; full_name: string | null; username: string | null }) => {
           ownerMap[row.id] = { full_name: row.full_name, username: row.username };
         });
       }
@@ -97,18 +88,18 @@ const AdminDashboardPage = () => {
   useEffect(() => {
     if (profileRole !== 'admin') return;
     (async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, username, role, created_at')
         .order('created_at', { ascending: false });
-      if (!error) setUsers((data as unknown as ProfileRow[]) ?? []);
+      if (!error) setUsers((data as ProfileRow[]) ?? []);
       setUsersLoading(false);
     })();
   }, [profileRole]);
 
   const handleApprove = async (shop: Shop) => {
     setApprovingId(shop.id);
-    const { error } = await (supabase as any).from('shops').update({ is_verified: true }).eq('id', shop.id);
+    const { error } = await supabase.from('shops').update({ is_verified: true }).eq('id', shop.id);
     setApprovingId(null);
     if (!error) {
       setPendingShops((prev) => prev.filter((s) => s.id !== shop.id));
@@ -120,7 +111,7 @@ const AdminDashboardPage = () => {
   const handleReject = async (shop: Shop) => {
     if (!confirm(`Are you sure you want to reject "${shop.name}"? This will remove the shop application.`)) return;
     setRejectingId(shop.id);
-    const { error } = await (supabase as any).from('shops').delete().eq('id', shop.id);
+    const { error } = await supabase.from('shops').delete().eq('id', shop.id);
     setRejectingId(null);
     if (!error) {
       setPendingShops((prev) => prev.filter((s) => s.id !== shop.id));
@@ -132,7 +123,7 @@ const AdminDashboardPage = () => {
   const handleDeleteShop = async (shop: Shop) => {
     if (!confirm(`Are you sure you want to permanently delete "${shop.name}"? This cannot be undone.`)) return;
     setDeletingShopId(shop.id);
-    const { error } = await (supabase as any).from('shops').delete().eq('id', shop.id);
+    const { error } = await supabase.from('shops').delete().eq('id', shop.id);
     setDeletingShopId(null);
     if (!error) {
       setAllShops((prev) => prev.filter((s) => s.id !== shop.id));
@@ -148,7 +139,7 @@ const AdminDashboardPage = () => {
       : `Are you sure you want to remove admin access from "${name}"? They will no longer be able to access the admin dashboard.`;
     if (!confirm(message)) return;
     setUpdatingRoleId(profile.id);
-    const { error } = await (supabase as any).rpc('set_user_role', {
+    const { error } = await supabase.rpc('set_user_role', {
       target_profile_id: profile.id,
       new_role: makeAdmin ? 'admin' : 'user',
     });
