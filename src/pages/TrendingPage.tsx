@@ -5,7 +5,6 @@ import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/product/ProductCard';
-import { products, getShopById } from '@/data/mockData';
 import { supabase } from '@/integrations/supabase/client';
 import type { Product, Shop } from '@/types';
 
@@ -70,9 +69,7 @@ function mapDbRowToShop(row: {
 }
 
 const TrendingPage = () => {
-  const [trendingProducts, setTrendingProducts] = useState<Product[]>(
-    () => [...products].sort((a, b) => b.likeCount - a.likeCount).slice(0, 20)
-  );
+  const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
   const [shopsMap, setShopsMap] = useState<Record<string, Shop>>({});
   const [loading, setLoading] = useState(true);
 
@@ -133,7 +130,7 @@ const TrendingPage = () => {
         ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {trendingProducts.map((product, index) => {
-            const shop = shopsMap[product.shopId] ?? getShopById(product.shopId);
+            const shop = shopsMap[product.shopId];
             return (
               <div key={product.id} className="relative">
                 {/* Rank Badge */}

@@ -4,7 +4,6 @@ import { ArrowRight, TrendingUp, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import ProductCard from '@/components/product/ProductCard';
-import { getTrendingProducts, getShopById } from '@/data/mockData';
 import { supabase } from '@/integrations/supabase/client';
 import type { Product, Shop } from '@/types';
 
@@ -69,7 +68,7 @@ function mapDbRowToShop(row: {
 }
 
 const TrendingProducts = () => {
-  const [trendingProducts, setTrendingProducts] = useState<Product[]>(() => getTrendingProducts());
+  const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
   const [shopsMap, setShopsMap] = useState<Record<string, Shop>>({});
   const [loading, setLoading] = useState(true);
 
@@ -138,7 +137,7 @@ const TrendingProducts = () => {
             <ProductCard
               key={product.id}
               product={product}
-              shop={shopsMap[product.shopId] ?? getShopById(product.shopId)}
+              shop={shopsMap[product.shopId]}
               index={index}
             />
           ))}

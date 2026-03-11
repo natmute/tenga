@@ -9,8 +9,8 @@ import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/product/ProductCard';
 import ShopCard from '@/components/shop/ShopCard';
-import { categories as mockCategories } from '@/data/mockData';
-import { products as mockProducts, shops as mockShops, getShopById } from '@/data/mockData';
+import { fetchCategories } from '@/data/categories';
+import type { Category } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import type { Product, Shop } from '@/types';
 
@@ -83,8 +83,9 @@ const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const qFromUrl = searchParams.get('q') ?? '';
   const [inputValue, setInputValue] = useState(qFromUrl);
-  const [realProducts, setRealProducts] = useState<Product[]>([]);
-  const [realShops, setRealShops] = useState<Shop[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -98,8 +99,8 @@ const SearchPage = () => {
         .select('id, name, slug, logo, banner, bio, location, categories(name)')
         .eq('is_verified', true);
       if (!shopRows?.length) {
-        setRealProducts([]);
-        setRealShops([]);
+        setProducts([]);
+        setShops([]);
         setLoading(false);
         return;
       }
@@ -135,7 +136,7 @@ const SearchPage = () => {
         }
         return p;
       });
-      setRealProducts(productsMapped);
+      setProducts(productsMapped);
 
       const { data: productCountRows } = await supabase.from('products').select('id, shop_id').in('shop_id', shopIds);
       const countByShop: Record<string, number> = {};
@@ -153,13 +154,14 @@ const SearchPage = () => {
         s.followerCount = followerByShop[row.id] ?? 0;
         return s;
       });
-      setRealShops(shopsMapped);
+      setShops(shopsMapped);
       setLoading(false);
     })();
   }, []);
 
-  const allProducts = useMemo(() => [...realProducts, ...mockProducts], [realProducts]);
-  const allShops = useMemo(() => [...realShops, ...mockShops], [realShops]);
+  useEffect(() => {
+    fetchCategories().then(setCategories);
+  }, []);
 
   const searchTerms = useMemo(
     () =>
@@ -173,24 +175,24 @@ const SearchPage = () => {
 
   const filteredCategories = useMemo(() => {
     if (searchTerms.length === 0) return [];
-    return mockCategories.filter((cat) => {
+    return categories.filter((cat) => {
       const text = [cat.name, cat.slug].join(' ').toLowerCase();
       return searchTerms.every((t) => text.includes(t));
     });
-  }, [searchTerms]);
+  }, [searchTerms, categories]);
 
   const filteredShops = useMemo(() => {
-    return allShops.filter((shop) => {
+    return shops.filter((shop) => {
       const text = [shop.name, shop.bio ?? '', shop.category].join(' ').toLowerCase();
       return matchesSearchTerms(text, searchTerms);
     });
-  }, [allShops, searchTerms]);
+  }, [shops, searchTerms]);
 
   const getShopForProduct = (product: Product): Shop | undefined =>
-    allShops.find((s) => s.id === product.shopId) ?? getShopById(product.shopId) ?? undefined;
+    shops.find((s) => s.id === product.shopId);
 
   const filteredProducts = useMemo(() => {
-    return allProducts.filter((product) => {
+    return products.filter((product) => {
       const shop = getShopForProduct(product);
       const text = [
         product.name,
@@ -200,7 +202,7 @@ const SearchPage = () => {
       ].join(' ').toLowerCase();
       return matchesSearchTerms(text, searchTerms);
     });
-  }, [allProducts, searchTerms, allShops]);
+  }, [products, searchTerms, shops]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

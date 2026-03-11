@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { categories } from '@/data/mockData';
+import type { Category } from '@/types';
 import { cn } from '@/lib/utils';
 
 export interface FilterState {
@@ -21,6 +21,7 @@ export interface FilterState {
 }
 
 interface FilterSheetProps {
+  categories: Category[];
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
   maxPrice?: number;
@@ -29,7 +30,7 @@ interface FilterSheetProps {
 const allColors = ['Black', 'White', 'Gray', 'Navy', 'Cream', 'Tortoise', 'Pink', 'Sage', 'Charcoal', 'Blush', 'Ocean', 'Wood', 'Space Gray'];
 const allSizes = ['S', 'M', 'L', 'XL', '7', '8', '9', '10', '11', '12', '41mm', '45mm'];
 
-const FilterSheet = ({ filters, onFiltersChange, maxPrice = 500 }: FilterSheetProps) => {
+const FilterSheet = ({ categories, filters, onFiltersChange, maxPrice = 500 }: FilterSheetProps) => {
   const [localFilters, setLocalFilters] = useState<FilterState>(filters);
   const [open, setOpen] = useState(false);
 

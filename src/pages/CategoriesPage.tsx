@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
-import { categories, products } from '@/data/mockData';
+import { fetchCategories } from '@/data/categories';
+import type { Category } from '@/types';
+import { Loader2 } from 'lucide-react';
 
 const categoryImages: Record<string, string> = {
   'Fashion': 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=400&fit=crop',
@@ -17,10 +20,15 @@ const categoryImages: Record<string, string> = {
 };
 
 const CategoriesPage = () => {
-  // Get actual product counts per category
-  const getCategoryProductCount = (categoryName: string) => {
-    return products.filter(p => p.category === categoryName).length;
-  };
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCategories().then((data) => {
+      setCategories(data);
+      setLoading(false);
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,10 +56,15 @@ const CategoriesPage = () => {
         </div>
 
         {/* Categories Grid */}
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-{categories.map((category, index) => {
+          {categories.map((category, index) => {
             const Icon = category.icon;
-            const productCount = getCategoryProductCount(category.name);
+            const productCount = category.productCount ?? 0;
             return (
               <motion.div
                 key={category.id}
@@ -90,6 +103,7 @@ const CategoriesPage = () => {
             );
           })}
         </div>
+        )}
       </div>
 
       <Footer />

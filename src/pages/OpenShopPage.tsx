@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -13,7 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
-import { categories } from '@/data/mockData';
+import { fetchCategories } from '@/data/categories';
+import type { Category } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -52,8 +53,13 @@ const OpenShopPage = () => {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
 
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  useEffect(() => {
+    fetchCategories().then(setCategories);
+  }, []);
 
   const handleImagePreview = (
     e: React.ChangeEvent<HTMLInputElement>,

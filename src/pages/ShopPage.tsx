@@ -11,7 +11,6 @@ import ProductCard from '@/components/product/ProductCard';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
-import { shops as mockShops, getProductsByShopId } from '@/data/mockData';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import type { Shop, Product } from '@/types';
@@ -261,14 +260,6 @@ const ShopPage = () => {
         } else {
           setIsFollowing(false);
         }
-      } else {
-        const mockShop = mockShops.find((s) => s.slug === slugParam);
-        setShop(mockShop ?? null);
-        setFollowerCount(mockShop?.followerCount ?? 0);
-        setRating(mockShop?.rating ?? 0);
-        setReviewCount(mockShop?.reviewCount ?? 0);
-        setIsFollowing(false);
-        setProducts(mockShop ? getProductsByShopId(mockShop.id) : []);
       }
       setLoading(false);
     })();

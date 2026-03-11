@@ -12,7 +12,6 @@ import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { getProductById, getShopById } from '@/data/mockData';
 import type { Product, Shop } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -112,30 +111,7 @@ const WishlistPage = () => {
       .in('id', wishlistIds)
       .then(({ data: rows }) => {
         const fromDb = (rows ?? []).map((r) => mapDbRowToProduct(r as Parameters<typeof mapDbRowToProduct>[0]));
-        const foundIds = new Set(fromDb.map((x) => x.product.id));
-        const missingIds = wishlistIds.filter((id) => !foundIds.has(id));
-        const fromMock = missingIds
-          .map((id) => {
-            const p = getProductById(id);
-            if (!p) return null;
-            const shop = getShopById(p.shopId) ?? {
-              id: p.shopId,
-              name: 'Shop',
-              slug: '',
-              logo: PLACEHOLDER_LOGO,
-              banner: PLACEHOLDER_LOGO,
-              bio: '',
-              category: '—',
-              rating: 0,
-              reviewCount: 0,
-              followerCount: 0,
-              productCount: 0,
-              isVerified: false,
-            } as Shop;
-            return { product: p, shop };
-          })
-          .filter((x): x is { product: Product; shop: Shop } => x != null);
-        setItems([...fromDb, ...fromMock]);
+        setItems(fromDb);
         setLoading(false);
       });
   }, [wishlistIds]);

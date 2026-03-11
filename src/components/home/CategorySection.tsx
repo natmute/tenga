@@ -1,8 +1,21 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { categories } from '@/data/mockData';
-
+import { fetchCategories } from '@/data/categories';
+import type { Category } from '@/types';
 const CategorySection = () => {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCategories().then((data) => {
+      setCategories(data);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading || categories.length === 0) return null;
+
   return (
     <section className="py-8 sm:py-12 md:py-16 bg-secondary/50">
       <div className="container px-4 sm:px-6">
@@ -49,7 +62,7 @@ const CategorySection = () => {
                     {category.name}
                   </span>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">
-                    {category.productCount.toLocaleString()} items
+                    {category.productCount > 0 ? `${category.productCount.toLocaleString()} items` : 'Browse'}
                   </span>
                 </div>
               </Link>

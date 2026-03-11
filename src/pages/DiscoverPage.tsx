@@ -9,7 +9,8 @@ import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/product/ProductCard';
 import FilterSheet, { FilterState } from '@/components/filters/FilterSheet';
-import { products as mockProducts, categories, getShopById } from '@/data/mockData';
+import { fetchCategories } from '@/data/categories';
+import type { Category } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import type { Product, Shop } from '@/types';
 import { cn } from '@/lib/utils';
@@ -89,8 +90,9 @@ const DiscoverPage = () => {
   const qFromUrl = searchParams.get('q') || '';
   const [searchQuery, setSearchQuery] = useState(qFromUrl);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [realProducts, setRealProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [realShopsMap, setRealShopsMap] = useState<Record<string, Shop>>({});
+  const [categories, setCategories] = useState<Category[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
 
   const categoryFromUrl = searchParams.get('category');
@@ -118,7 +120,7 @@ const DiscoverPage = () => {
         .select('id, name, slug, logo, banner, bio, location, categories(name)')
         .eq('is_verified', true);
       if (!shopRows?.length) {
-        setRealProducts([]);
+        setProducts([]);
         setRealShopsMap({});
         setProductsLoading(false);
         return;
@@ -158,23 +160,20 @@ const DiscoverPage = () => {
         }
         return p;
       });
-      setRealProducts(mapped);
+      setProducts(mapped);
       setProductsLoading(false);
     })();
   }, []);
 
-  const allProducts = useMemo(
-    () => [...realProducts, ...mockProducts],
-    [realProducts]
-  );
+  useEffect(() => {
+    fetchCategories().then(setCategories);
+  }, []);
 
   const maxPrice = useMemo(() => {
-    if (allProducts.length === 0) return 1000;
-    const max = Math.max(...allProducts.map((p) => p.price));
+    if (products.length === 0) return 1000;
+    const max = Math.max(...products.map((p) => p.price));
     return Math.ceil(max / 100) * 100;
-  }, [allProducts]);
-
-  const initialMaxPrice = useMemo(() => Math.ceil(Math.max(...mockProducts.map((p) => p.price), 0) / 100) * 100 || 1000, []);
+  }, [products]);
 
   const [filters, setFilters] = useState<FilterState>(() => {
     const categoryFromUrl = searchParams.get('category');
@@ -182,7 +181,7 @@ const DiscoverPage = () => {
       categories: categoryFromUrl ? [categoryFromUrl] : [],
       colors: [],
       sizes: [],
-      priceRange: [0, initialMaxPrice],
+      priceRange: [0, 1000],
     };
   });
 
@@ -194,7 +193,7 @@ const DiscoverPage = () => {
   }, [searchQuery, filters.categories, setSearchParams]);
 
   const getShopForProduct = (product: Product): Shop | undefined =>
-    realShopsMap[product.shopId] ?? getShopById(product.shopId) ?? undefined;
+    realShopsMap[product.shopId];
 
   const filteredProducts = useMemo(() => {
     const searchTerms = searchQuery
@@ -202,7 +201,7 @@ const DiscoverPage = () => {
       .trim()
       .split(/\s+/)
       .filter(Boolean);
-    return allProducts.filter((product) => {
+    return products.filter((product) => {
       const shop = getShopForProduct(product);
       const searchableText = [
         product.name,
@@ -247,7 +246,7 @@ const DiscoverPage = () => {
         matchesPrice
       );
     });
-  }, [searchQuery, filters, allProducts, realShopsMap]);
+  }, [searchQuery, filters, products, realShopsMap]);
 
   const handleCategoryClick = (categoryName: string | null) => {
     setFilters(prev => ({
@@ -293,9 +292,10 @@ const DiscoverPage = () => {
             />
           </div>
           <FilterSheet
+            categories={categories}
             filters={filters}
             onFiltersChange={setFilters}
-            maxPrice={Math.max(maxPrice, initialMaxPrice)}
+            maxPrice={maxPrice}
           />
         </div>
 
@@ -346,7 +346,7 @@ const DiscoverPage = () => {
                 Size: {size}
               </span>
             ))}
-            {(filters.priceRange[0] > 0 || filters.priceRange[1] < Math.max(maxPrice, initialMaxPrice)) && (
+            {(filters.priceRange[0] > 0 || filters.priceRange[1] < maxPrice) && (
               <span className="px-2 py-1 text-xs rounded-full bg-accent">
                 ${filters.priceRange[0]} - ${filters.priceRange[1]}
               </span>
@@ -398,7 +398,7 @@ const DiscoverPage = () => {
                   categories: [],
                   colors: [],
                   sizes: [],
-                  priceRange: [0, Math.max(maxPrice, initialMaxPrice)],
+                  priceRange: [0, maxPrice],
                 });
               }}
             >

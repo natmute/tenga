@@ -10,8 +10,6 @@ import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/product/ProductCard';
-import { products as mockProducts, getShopById, getProductsByShopId } from '@/data/mockData';
-import { getReviewsByProductId } from '@/data/reviewsData';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/hooks/use-toast';
@@ -186,17 +184,6 @@ const ProductPage = () => {
             ownerRepliedAt: r.owner_replied_at ?? undefined,
           }))
         );
-      } else {
-        const mockProduct = mockProducts.find((p) => p.slug === slug);
-        const mockShop = mockProduct ? getShopById(mockProduct.shopId) : null;
-        setProduct(mockProduct ?? null);
-        setShop(mockShop);
-        setRelatedProducts(
-          mockProduct && mockShop
-            ? getProductsByShopId(mockShop.id).filter((p) => p.id !== mockProduct.id).slice(0, 4)
-            : []
-        );
-        setReviews(mockProduct ? getReviewsByProductId(mockProduct.id) : []);
       }
       setLoading(false);
     })();

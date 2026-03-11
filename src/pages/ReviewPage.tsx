@@ -9,8 +9,6 @@ import { Label } from '@/components/ui/label';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
-import { products, getShopById } from '@/data/mockData';
-import { getReviewsByProductId } from '@/data/reviewsData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -128,12 +126,6 @@ const ReviewPage = () => {
             ownerRepliedAt: r.owner_replied_at ?? undefined,
           }))
         );
-      } else {
-        const mockProduct = products.find((p) => p.slug === slug);
-        const mockShop = mockProduct ? getShopById(mockProduct.shopId) : null;
-        setProduct(mockProduct ?? null);
-        setShop(mockShop ?? null);
-        setReviews(mockProduct ? getReviewsByProductId(mockProduct.id) : []);
       }
       setLoading(false);
     })();

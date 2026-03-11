@@ -8,7 +8,6 @@ import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
 import ShopCard from '@/components/shop/ShopCard';
 import { supabase } from '@/integrations/supabase/client';
-import { shops as mockShops } from '@/data/mockData';
 import type { Shop } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -63,7 +62,7 @@ const ShopsPage = () => {
         .eq('is_verified', true)
         .order('created_at', { ascending: false });
       if (error || !shopRows) {
-        setShops([...mockShops]);
+        setShops([]);
         setLoading(false);
         return;
       }
@@ -104,7 +103,7 @@ const ShopsPage = () => {
         }
         return mapped;
       });
-      setShops([...approvedShops, ...mockShops]);
+      setShops(approvedShops);
       setLoading(false);
     })();
   }, []);

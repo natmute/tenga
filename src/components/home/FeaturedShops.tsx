@@ -4,7 +4,6 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import ShopCard from '@/components/shop/ShopCard';
-import { getFeaturedShops } from '@/data/mockData';
 import { supabase } from '@/integrations/supabase/client';
 import type { Shop } from '@/types';
 
@@ -40,7 +39,7 @@ function mapDbShopToShop(row: {
 }
 
 const FeaturedShops = () => {
-  const [featuredShops, setFeaturedShops] = useState<Shop[]>(() => getFeaturedShops());
+  const [featuredShops, setFeaturedShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
