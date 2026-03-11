@@ -195,6 +195,14 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               );
             }
           });
+        // Record engagement for like count (1 like per user per product; never decreases)
+        supabase
+          .from('product_engagement')
+          .upsert(
+            { user_id: user.id, product_id: product.id },
+            { onConflict: 'user_id,product_id', ignoreDuplicates: true }
+          )
+          .then(() => {});
       }
       return [...current, newItem];
     });

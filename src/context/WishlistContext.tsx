@@ -86,6 +86,14 @@ export const WishlistProvider: React.FC<{ children: ReactNode }> = ({ children }
         .from('product_likes')
         .insert({ user_id: user.id, product_id: productId })
         .then(() => {});
+      // Record engagement for like count (1 like per user per product; never decreases)
+      supabase
+        .from('product_engagement')
+        .upsert(
+          { user_id: user.id, product_id: productId },
+          { onConflict: 'user_id,product_id', ignoreDuplicates: true }
+        )
+        .then(() => {});
     },
     [user, wishlistIds, toast, navigate]
   );

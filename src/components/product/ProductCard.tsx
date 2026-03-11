@@ -70,7 +70,7 @@ const ProductCard = ({ product, shop, index = 0, variant = 'default' }: ProductC
             </div>
           )}
 
-          {/* Actions - always visible on touch (hover: none), hover on desktop */}
+          {/* Actions - always visible on touch (hover: none), show on hover on desktop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: isHovered ? 1 : 0 }}
@@ -79,31 +79,19 @@ const ProductCard = ({ product, shop, index = 0, variant = 'default' }: ProductC
             <Button
               size="icon"
               variant="secondary"
-              className="h-11 w-11 min-w-[44px] rounded-full shadow-lg backdrop-blur-sm bg-background/80 hover:bg-background"
+              className="h-9 w-9 sm:h-11 sm:w-11 min-w-[44px] rounded-full shadow-lg backdrop-blur-sm bg-background/80 hover:bg-background"
               onClick={handleLike}
             >
-              <Heart className={cn("h-5 w-5 transition-colors", isLiked && "fill-primary text-primary")} />
+              <Heart className={cn("h-4 w-4 sm:h-5 sm:w-5 transition-colors", isLiked && "fill-primary text-primary")} />
             </Button>
             <Button
               size="icon"
-              className="h-11 w-11 min-w-[44px] rounded-full shadow-lg bg-gradient-primary hover:opacity-90"
+              className="h-9 w-9 sm:h-11 sm:w-11 min-w-[44px] rounded-full shadow-lg bg-gradient-primary hover:opacity-90"
               onClick={handleAddToCart}
             >
-              <ShoppingBag className="h-5 w-5" />
+              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </motion.div>
-
-          {/* Mobile Actions (always visible) */}
-          <div className="absolute bottom-3 right-3 flex gap-2 md:hidden">
-            <Button
-              size="icon"
-              variant="secondary"
-              className="h-9 w-9 rounded-full shadow-lg backdrop-blur-sm bg-background/80"
-              onClick={handleLike}
-            >
-              <Heart className={cn("h-4 w-4 transition-colors", isLiked && "fill-primary text-primary")} />
-            </Button>
-          </div>
         </div>
 
         {/* Content */}

@@ -205,6 +205,31 @@ export type Database = {
           }
         ]
       }
+      product_engagement: {
+        Row: {
+          user_id: string
+          product_id: string
+          created_at: string
+        }
+        Insert: {
+          user_id: string
+          product_id: string
+          created_at?: string
+        }
+        Update: {
+          user_id?: string
+          product_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_engagement_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       product_likes: {
         Row: {
           user_id: string
