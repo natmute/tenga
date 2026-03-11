@@ -13,6 +13,7 @@ import {
   Pencil,
   Check,
   X,
+  Code2,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -34,6 +35,7 @@ type ProfileRow = {
   avatar_url: string | null;
   phone: string | null;
   role: string | null;
+  is_dev?: boolean;
 };
 
 const ProfilePage = () => {
@@ -169,6 +171,14 @@ const ProfilePage = () => {
             </Link>
           </Button>
         )}
+        {(profile?.is_dev) && (
+          <Button asChild variant="outline" className="w-full sm:w-auto mb-4 sm:mb-6 min-h-[44px]" size="lg">
+            <Link to="/dev" className="inline-flex items-center justify-center gap-2">
+              <Code2 className="h-5 w-5" />
+              Dev panel
+            </Link>
+          </Button>
+        )}
 
         <Card className="mb-4 sm:mb-6 overflow-hidden">
           <CardContent className="p-4 sm:p-6 pt-4 sm:pt-6">
@@ -207,6 +217,12 @@ const ProfilePage = () => {
                         <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 sm:px-3 py-1 text-xs font-medium text-primary">
                           <Shield className="h-3.5 w-3.5 flex-shrink-0" />
                           Admin
+                        </span>
+                      )}
+                      {profile?.is_dev && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 sm:px-3 py-1 text-xs font-medium text-muted-foreground">
+                          <Code2 className="h-3.5 w-3.5 flex-shrink-0" />
+                          Dev
                         </span>
                       )}
                       {hasShop && (
@@ -339,6 +355,15 @@ const ProfilePage = () => {
               >
                 <Shield className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 <span className="text-base">Admin</span>
+              </Link>
+            )}
+            {(profile?.is_dev) && (
+              <Link
+                to="/dev"
+                className="flex items-center gap-3 rounded-lg px-3 py-3.5 min-h-[48px] text-foreground hover:bg-secondary active:bg-secondary transition-colors touch-manipulation"
+              >
+                <Code2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                <span className="text-base">Dev panel</span>
               </Link>
             )}
             <button

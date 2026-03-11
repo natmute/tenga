@@ -79,6 +79,7 @@ const TrendingPage = () => {
         .from('products')
         .select('*, product_images(image_url), shops(id, name, slug, logo, categories(name))')
         .eq('is_trending', true)
+        .order('like_count', { ascending: false, nullsFirst: false })
         .limit(20);
       setLoading(false);
       if (!error && productRows && productRows.length > 0) {

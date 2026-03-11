@@ -27,6 +27,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import SellerDashboardPage from "./pages/SellerDashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import DevDashboardPage from "./pages/DevDashboardPage";
 import PricingPage from "./pages/PricingPage";
 import SuccessStoriesPage from "./pages/SuccessStoriesPage";
 import WishlistPage from "./pages/WishlistPage";
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="/terms-of-service" element={<TermsOfServicePage />} />
               <Route path="/seller-dashboard" element={<SellerDashboardPage />} />
               <Route path="/admin" element={<AdminDashboardPage />} />
+              <Route path="/dev" element={<DevDashboardPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/success-stories" element={<SuccessStoriesPage />} />
               <Route path="/wishlist" element={<WishlistPage />} />

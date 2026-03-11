@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShoppingBag, User, Menu, X, Heart, Sun, Moon, LogOut, Shield, Store, Package, UserPlus } from 'lucide-react';
+import { Search, ShoppingBag, User, Menu, X, Heart, Sun, Moon, LogOut, Shield, Store, Package, UserPlus, Code2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCart } from '@/context/CartContext';
@@ -27,6 +27,7 @@ const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDev, setIsDev] = useState(false);
   const [hasShop, setHasShop] = useState(false);
 
   useEffect(() => {
@@ -44,15 +45,20 @@ const Header = () => {
   useEffect(() => {
     if (!user) {
       setIsAdmin(false);
+      setIsDev(false);
       setHasShop(false);
       return;
     }
     supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_dev')
       .eq('id', user.id)
       .maybeSingle()
-      .then(({ data }) => setIsAdmin(data?.role === 'admin'));
+      .then(({ data }) => {
+        const role = data?.role ?? null;
+        setIsAdmin(role === 'admin');
+        setIsDev(data?.is_dev === true);
+      });
     supabase
       .from('shops')
       .select('id')
@@ -111,6 +117,15 @@ const Header = () => {
             >
               <Shield className="h-4 w-4" />
               Admin
+            </Link>
+          )}
+          {isDev && (
+            <Link
+              to="/dev"
+              className="px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground flex items-center gap-1.5"
+            >
+              <Code2 className="h-4 w-4" />
+              Dev
             </Link>
           )}
         </nav>
@@ -343,6 +358,16 @@ const Header = () => {
                 >
                   <Shield className="h-4 w-4" />
                   Admin
+                </Link>
+              )}
+              {isDev && (
+                <Link
+                  to="/dev"
+                  className="px-4 py-3.5 min-h-[48px] flex items-center text-base font-medium text-foreground rounded-lg hover:bg-secondary active:bg-secondary transition-colors gap-2"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Code2 className="h-4 w-4" />
+                  Dev
                 </Link>
               )}
             </nav>
