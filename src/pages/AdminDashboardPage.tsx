@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
-import { Store, Check, X, ShieldAlert, Loader2, Users, Shield, Trash2, ExternalLink, Star, TrendingUp, Truck, Package, Plus, MessageCircle } from 'lucide-react';
+import { Store, Check, X, ShieldAlert, Loader2, Users, Shield, Trash2, ExternalLink, Star, TrendingUp, Truck, Package, Plus, MessageCircle, Mail, Send, Search } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -25,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 type Shop = Tables<'shops'>;
@@ -88,6 +90,15 @@ const AdminDashboardPage = () => {
   const [adminConvMessagesLoading, setAdminConvMessagesLoading] = useState(false);
   const [adminCustomerNames, setAdminCustomerNames] = useState<Record<string, string>>({});
   const [adminShopOwnerIds, setAdminShopOwnerIds] = useState<Record<string, string>>({});
+  const [adminPromoSubject, setAdminPromoSubject] = useState('');
+  const [adminPromoBody, setAdminPromoBody] = useState('');
+  const [adminPromoTier, setAdminPromoTier] = useState<string>('all');
+  const [adminPromoSending, setAdminPromoSending] = useState(false);
+  const [updatingTierShopId, setUpdatingTierShopId] = useState<string | null>(null);
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [adminActiveTab, setAdminActiveTab] = useState('shops');
+  const [userFilterRole, setUserFilterRole] = useState<string>('all');
+  const [userFilterDate, setUserFilterDate] = useState<string>('all');
 
   useEffect(() => {
     if (!user) {
@@ -362,6 +373,14 @@ const AdminDashboardPage = () => {
   const filteredOrders = allOrders.filter((order) => {
     if (orderFilterStatus && (order.status ?? 'pending') !== orderFilterStatus) return false;
     if (orderFilterShopId && order.shop_id !== orderFilterShopId) return false;
+    const orderSearch = adminSearchQuery.trim().toLowerCase();
+    if (orderSearch) {
+      const orderNumber = (order.order_number ?? order.id).toString().toLowerCase();
+      const customerName = (order.customer_name ?? '').toLowerCase();
+      const customerEmail = (order.customer_email ?? '').toLowerCase();
+      const shopName = (order.shops?.name ?? '').toLowerCase();
+      if (!orderNumber.includes(orderSearch) && !customerName.includes(orderSearch) && !customerEmail.includes(orderSearch) && !shopName.includes(orderSearch)) return false;
+    }
     return true;
   });
 
@@ -500,6 +519,132 @@ const AdminDashboardPage = () => {
     }
   };
 
+  const handleSendAdminPromo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const subject = adminPromoSubject.trim();
+    const body = adminPromoBody.trim();
+    if (!subject || !body) {
+      toast({ title: 'Required', description: 'Please enter subject and message.', variant: 'destructive' });
+      return;
+    }
+    setAdminPromoSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-admin-promo-to-store-owners', {
+        body: { subject, body, tier: adminPromoTier },
+      });
+      if (error) throw error;
+      const sent = (data as { sent?: number })?.sent ?? 0;
+      const msg = (data as { message?: string })?.message ?? `Sent to ${sent} store owner(s).`;
+      toast({ title: 'Email sent', description: msg });
+      setAdminPromoSubject('');
+      setAdminPromoBody('');
+    } catch (err) {
+      toast({ title: 'Could not send', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
+    } finally {
+      setAdminPromoSending(false);
+    }
+  };
+
+  const handleTierChange = async (shopId: string, tier: string) => {
+    setUpdatingTierShopId(shopId);
+    const { error } = await supabase.from('shops').update({ pricing_tier: tier }).eq('id', shopId);
+    setUpdatingTierShopId(null);
+    if (!error) {
+      setAllShops((prev) => prev.map((s) => (s.id === shopId ? { ...s, pricing_tier: tier } : s)));
+      toast({ title: 'Tier updated', description: 'Pricing tier saved.' });
+    } else toast({ title: 'Failed to update tier', description: error.message, variant: 'destructive' });
+  };
+
+  const getEffectiveRole = (p: ProfileRow): 'admin' | 'seller' | 'customer' => {
+    if (p.role === 'admin') return 'admin';
+    if (allShops.some((s) => s.owner_id === p.id)) return 'seller';
+    return 'customer';
+  };
+
+  const filteredUsers = useMemo(() => {
+    const q = adminSearchQuery.trim().toLowerCase();
+    const dateFilter = userFilterDate;
+    const now = Date.now();
+    const cutoffs: Record<string, number> = {
+      all: 0,
+      '7': now - 7 * 24 * 60 * 60 * 1000,
+      '30': now - 30 * 24 * 60 * 60 * 1000,
+      '90': now - 90 * 24 * 60 * 60 * 1000,
+    };
+    const cutoff = cutoffs[dateFilter] ?? 0;
+
+    let list = users.filter((p) => {
+      if (q) {
+        const name = (p.full_name ?? '').toLowerCase();
+        const username = (p.username ?? '').toLowerCase();
+        if (!name.includes(q) && !username.includes(q)) return false;
+      }
+      const role = getEffectiveRole(p);
+      if (userFilterRole !== 'all' && role !== userFilterRole) return false;
+      if (cutoff > 0 && p.created_at) {
+        const created = new Date(p.created_at).getTime();
+        if (created < cutoff) return false;
+      }
+      return true;
+    });
+
+    const roleOrder = { admin: 0, seller: 1, customer: 2 };
+    list = [...list].sort((a, b) => {
+      if (a.id === user?.id) return -1;
+      if (b.id === user?.id) return 1;
+      const ra = getEffectiveRole(a);
+      const rb = getEffectiveRole(b);
+      if (ra !== rb) return roleOrder[ra] - roleOrder[rb];
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return db - da;
+    });
+    return list;
+  }, [users, allShops, user?.id, adminSearchQuery, userFilterRole, userFilterDate]);
+
+  const shopSearchLower = adminSearchQuery.trim().toLowerCase();
+  const filteredPendingShops = useMemo(() => {
+    if (!shopSearchLower) return pendingShops;
+    return pendingShops.filter((s) => {
+      const name = (s.name ?? '').toLowerCase();
+      const slug = (s.slug ?? '').toLowerCase();
+      const owner = ownerByShopId[s.id];
+      const ownerStr = owner ? [owner.full_name, owner.username].filter(Boolean).join(' ').toLowerCase() : '';
+      return name.includes(shopSearchLower) || slug.includes(shopSearchLower) || ownerStr.includes(shopSearchLower);
+    });
+  }, [pendingShops, shopSearchLower, ownerByShopId]);
+
+  const filteredAllShops = useMemo(() => {
+    if (!shopSearchLower) return allShops;
+    return allShops.filter((s) => {
+      const name = (s.name ?? '').toLowerCase();
+      const slug = (s.slug ?? '').toLowerCase();
+      const owner = ownerByShopId[s.id];
+      const ownerStr = owner ? [owner.full_name, owner.username].filter(Boolean).join(' ').toLowerCase() : '';
+      return name.includes(shopSearchLower) || slug.includes(shopSearchLower) || ownerStr.includes(shopSearchLower);
+    });
+  }, [allShops, shopSearchLower, ownerByShopId]);
+
+  const filteredProductsBySearch = useMemo(() => {
+    const q = adminSearchQuery.trim().toLowerCase();
+    if (!q) return allProducts;
+    return allProducts.filter((p) => {
+      const name = (p.name ?? '').toLowerCase();
+      const shopName = (p.shops?.name ?? '').toLowerCase();
+      return name.includes(q) || shopName.includes(q);
+    });
+  }, [allProducts, adminSearchQuery]);
+
+  const filteredConversationsBySearch = useMemo(() => {
+    const q = adminSearchQuery.trim().toLowerCase();
+    if (!q) return adminConversations;
+    return adminConversations.filter((c) => {
+      const shopName = (c.shops?.name ?? '').toLowerCase();
+      const customerName = (adminCustomerNames[c.customer_id] ?? '').toLowerCase();
+      return shopName.includes(q) || customerName.includes(q);
+    });
+  }, [adminConversations, adminSearchQuery, adminCustomerNames]);
+
   if (authLoading || profileLoading) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -543,14 +688,55 @@ const AdminDashboardPage = () => {
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold">Admin dashboard</h1>
           <p className="text-muted-foreground mt-1">Manage shops, users, and approvals.</p>
+          <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                type="search"
+                placeholder={adminActiveTab === 'users' ? 'Search users by name or username...' : adminActiveTab === 'shops' ? 'Search shops...' : adminActiveTab === 'products' ? 'Search products...' : adminActiveTab === 'orders' ? 'Search orders...' : adminActiveTab === 'messages' ? 'Search conversations...' : 'Search...'}
+                value={adminSearchQuery}
+                onChange={(e) => setAdminSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
         </div>
 
+        <Tabs value={adminActiveTab} onValueChange={setAdminActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto gap-1 p-1">
+            <TabsTrigger value="shops" className="flex items-center gap-1.5 py-2">
+              <Store className="h-4 w-4 shrink-0" />
+              Shops
+            </TabsTrigger>
+            <TabsTrigger value="products" className="flex items-center gap-1.5 py-2">
+              <Package className="h-4 w-4 shrink-0" />
+              Products
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="flex items-center gap-1.5 py-2">
+              <Truck className="h-4 w-4 shrink-0" />
+              Orders
+            </TabsTrigger>
+            <TabsTrigger value="messages" className="flex items-center gap-1.5 py-2">
+              <MessageCircle className="h-4 w-4 shrink-0" />
+              Messages
+            </TabsTrigger>
+            <TabsTrigger value="promotions" className="flex items-center gap-1.5 py-2">
+              <Mail className="h-4 w-4 shrink-0" />
+              Promotions
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex items-center gap-1.5 py-2">
+              <Users className="h-4 w-4 shrink-0" />
+              Users
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="shops" className="space-y-6">
         {/* Pending shops */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Store className="h-5 w-5" />
-              Pending shops ({pendingShops.length})
+              Pending shops ({filteredPendingShops.length}{filteredPendingShops.length !== pendingShops.length ? ` of ${pendingShops.length}` : ''})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -558,11 +744,11 @@ const AdminDashboardPage = () => {
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : pendingShops.length === 0 ? (
-              <p className="text-muted-foreground text-center py-12">No pending applications.</p>
+            ) : filteredPendingShops.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">{pendingShops.length === 0 ? 'No pending applications.' : 'No pending shops match the search.'}</p>
             ) : (
               <div className="space-y-4">
-                {pendingShops.map((shop) => (
+                {filteredPendingShops.map((shop) => (
                   <div
                     key={shop.id}
                     className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-lg border border-border p-4"
@@ -619,7 +805,7 @@ const AdminDashboardPage = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Store className="h-5 w-5" />
-              All shops ({allShops.length})
+              All shops ({filteredAllShops.length}{filteredAllShops.length !== allShops.length ? ` of ${allShops.length}` : ''})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -627,8 +813,8 @@ const AdminDashboardPage = () => {
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : allShops.length === 0 ? (
-              <p className="text-muted-foreground text-center py-12">No shops yet.</p>
+            ) : filteredAllShops.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">{allShops.length === 0 ? 'No shops yet.' : 'No shops match the search.'}</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -638,12 +824,13 @@ const AdminDashboardPage = () => {
                       <th className="text-left py-3 font-medium">Slug</th>
                       <th className="text-left py-3 font-medium">Owner</th>
                       <th className="text-left py-3 font-medium">Status</th>
+                      <th className="text-left py-3 font-medium">Tier</th>
                       <th className="text-left py-3 font-medium">Featured</th>
                       <th className="text-right py-3 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {allShops.map((shop) => (
+                    {filteredAllShops.map((shop) => (
                       <tr key={shop.id} className="border-b border-border/50">
                         <td className="py-3">{shop.name}</td>
                         <td className="py-3 text-muted-foreground">/{shop.slug}</td>
@@ -656,6 +843,22 @@ const AdminDashboardPage = () => {
                           <span className={shop.is_verified ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}>
                             {shop.is_verified ? 'Verified' : 'Pending'}
                           </span>
+                        </td>
+                        <td className="py-3">
+                          <Select
+                            value={(shop as Shop & { pricing_tier?: string }).pricing_tier ?? 'starter'}
+                            onValueChange={(v) => handleTierChange(shop.id, v)}
+                            disabled={updatingTierShopId === shop.id}
+                          >
+                            <SelectTrigger className="w-[120px] h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="starter">Starter</SelectItem>
+                              <SelectItem value="growth">Growth</SelectItem>
+                              <SelectItem value="enterprise">Enterprise</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </td>
                         <td className="py-3">
                           {shop.is_verified && (
@@ -695,12 +898,15 @@ const AdminDashboardPage = () => {
           </CardContent>
         </Card>
 
+          </TabsContent>
+
+          <TabsContent value="products" className="space-y-6">
         {/* Trending Products */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Trending Products ({allProducts.filter((p) => (p as Product & { is_trending?: boolean }).is_trending).length} selected)
+              Trending Products ({filteredProductsBySearch.filter((p) => (p as Product & { is_trending?: boolean }).is_trending).length} selected{filteredProductsBySearch.length !== allProducts.length ? ` · ${filteredProductsBySearch.length} of ${allProducts.length} shown` : ''})
             </CardTitle>
             <p className="text-sm text-muted-foreground">Toggle which products appear in the Trending section on the home page.</p>
           </CardHeader>
@@ -709,8 +915,8 @@ const AdminDashboardPage = () => {
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : allProducts.length === 0 ? (
-              <p className="text-muted-foreground text-center py-12">No products yet.</p>
+            ) : filteredProductsBySearch.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">{allProducts.length === 0 ? 'No products yet.' : 'No products match the search.'}</p>
             ) : (
               <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
                 <table className="w-full text-sm">
@@ -723,7 +929,7 @@ const AdminDashboardPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {allProducts.map((product) => (
+                    {filteredProductsBySearch.map((product) => (
                       <tr key={product.id} className="border-b border-border/50">
                         <td className="py-3">
                           <div className="flex items-center gap-2">
@@ -908,6 +1114,9 @@ const AdminDashboardPage = () => {
           </CardContent>
         </Card>
 
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-6">
         {/* Order management */}
         <Card className="mb-6">
           <CardHeader>
@@ -1092,12 +1301,15 @@ const AdminDashboardPage = () => {
           </CardContent>
         </Card>
 
+          </TabsContent>
+
+          <TabsContent value="messages" className="space-y-6">
         {/* Messages (customer–seller) */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5" />
-              Messages ({adminConversations.length})
+              Messages ({filteredConversationsBySearch.length}{filteredConversationsBySearch.length !== adminConversations.length ? ` of ${adminConversations.length}` : ''})
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               View conversations between customers and sellers. Select a thread to read messages.
@@ -1108,12 +1320,12 @@ const AdminDashboardPage = () => {
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : adminConversations.length === 0 ? (
-              <p className="text-muted-foreground text-center py-12">No conversations yet.</p>
+            ) : filteredConversationsBySearch.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">{adminConversations.length === 0 ? 'No conversations yet.' : 'No conversations match the search.'}</p>
             ) : (
               <div className="flex flex-col md:flex-row gap-4">
                 <ul className="space-y-1 border-r border-border pr-4 min-w-[220px] max-h-[320px] overflow-y-auto">
-                  {adminConversations.map((c) => {
+                  {filteredConversationsBySearch.map((c) => {
                     const shopName = c.shops?.name ?? 'Shop';
                     const customerName = adminCustomerNames[c.customer_id] ?? 'Customer';
                     const label = `${shopName} · ${customerName}`;
@@ -1183,22 +1395,124 @@ const AdminDashboardPage = () => {
           </CardContent>
         </Card>
 
+          </TabsContent>
+
+          <TabsContent value="promotions" className="space-y-6">
+        {/* Email store owners (promo by pricing tier) */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Email store owners
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Send a promotional or announcement email to shop owners. Optionally target by pricing tier (Starter, Growth, Enterprise).
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSendAdminPromo} className="space-y-4 max-w-xl">
+              <div>
+                <Label htmlFor="admin-promo-subject">Subject *</Label>
+                <Input
+                  id="admin-promo-subject"
+                  value={adminPromoSubject}
+                  onChange={(e) => setAdminPromoSubject(e.target.value)}
+                  placeholder="e.g. New features for sellers"
+                  className="mt-1"
+                  disabled={adminPromoSending}
+                />
+              </div>
+              <div>
+                <Label htmlFor="admin-promo-body">Message *</Label>
+                <Textarea
+                  id="admin-promo-body"
+                  value={adminPromoBody}
+                  onChange={(e) => setAdminPromoBody(e.target.value)}
+                  placeholder="Write your message. Plain text or simple HTML."
+                  rows={6}
+                  className="mt-1"
+                  disabled={adminPromoSending}
+                />
+              </div>
+              <div>
+                <Label htmlFor="admin-promo-tier">Send to</Label>
+                <Select value={adminPromoTier} onValueChange={setAdminPromoTier} disabled={adminPromoSending}>
+                  <SelectTrigger id="admin-promo-tier" className="mt-1 max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All store owners</SelectItem>
+                    <SelectItem value="starter">Starter tier only</SelectItem>
+                    <SelectItem value="growth">Growth tier only</SelectItem>
+                    <SelectItem value="enterprise">Enterprise tier only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" disabled={adminPromoSending}>
+                {adminPromoSending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-1" />
+                    Send email to store owners
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-6">
         {/* Users */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Users ({users.length})
+              Users ({filteredUsers.length}{filteredUsers.length !== users.length ? ` of ${users.length}` : ''})
             </CardTitle>
-            <p className="text-sm text-muted-foreground">Make users admins or remove accounts.</p>
+            <p className="text-sm text-muted-foreground">Make users admins or remove accounts. Logged-in admin first, then admins, sellers, customers.</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-muted-foreground whitespace-nowrap text-xs">Role</Label>
+                <Select value={userFilterRole} onValueChange={setUserFilterRole}>
+                  <SelectTrigger className="w-[130px] h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All roles</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="seller">Seller</SelectItem>
+                    <SelectItem value="customer">Customer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-muted-foreground whitespace-nowrap text-xs">Joined</Label>
+                <Select value={userFilterDate} onValueChange={setUserFilterDate}>
+                  <SelectTrigger className="w-[140px] h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All time</SelectItem>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="90">Last 90 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             {usersLoading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : users.length === 0 ? (
               <p className="text-muted-foreground text-center py-12">No users yet.</p>
+            ) : filteredUsers.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">No users match the search or filters.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -1212,25 +1526,25 @@ const AdminDashboardPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((p) => {
-                      const isSeller = allShops.some((s) => s.owner_id === p.id);
-                      const displayRole = p.role === 'admin' ? 'Admin' : isSeller ? 'Seller' : 'Customer';
+                    {filteredUsers.map((p) => {
+                      const displayRole = getEffectiveRole(p);
+                      const displayRoleLabel = displayRole === 'admin' ? 'Admin' : displayRole === 'seller' ? 'Seller' : 'Customer';
                       return (
                       <tr key={p.id} className="border-b border-border/50">
                         <td className="py-3">{p.full_name || '—'}</td>
                         <td className="py-3 text-muted-foreground">@{p.username ?? '—'}</td>
                         <td className="py-3">
-                          {displayRole === 'Admin' && (
+                          {displayRoleLabel === 'Admin' && (
                             <span className="inline-flex items-center gap-1 text-primary font-medium">
                               <Shield className="h-4 w-4" /> Admin
                             </span>
                           )}
-                          {displayRole === 'Seller' && (
+                          {displayRoleLabel === 'Seller' && (
                             <span className="inline-flex items-center gap-1 text-muted-foreground">
                               <Store className="h-4 w-4" /> Seller
                             </span>
                           )}
-                          {displayRole === 'Customer' && (
+                          {displayRoleLabel === 'Customer' && (
                             <span className="text-muted-foreground">Customer</span>
                           )}
                         </td>
@@ -1260,14 +1574,16 @@ const AdminDashboardPage = () => {
                                     {updatingRoleId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Shield className="h-4 w-4 mr-1" /> Make admin</>}
                                   </Button>
                                 )}
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => handleDeleteUser(p)}
-                                  disabled={deletingUserId === p.id}
-                                >
-                                  {deletingUserId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-1" /> Delete user</>}
-                                </Button>
+                                {p.role !== 'admin' && (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleDeleteUser(p)}
+                                    disabled={deletingUserId === p.id}
+                                  >
+                                    {deletingUserId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-1" /> Delete user</>}
+                                  </Button>
+                                )}
                               </>
                             )}
                             {p.id === user.id && <span className="text-muted-foreground text-xs">(you)</span>}
@@ -1281,6 +1597,9 @@ const AdminDashboardPage = () => {
             )}
           </CardContent>
         </Card>
+
+          </TabsContent>
+        </Tabs>
       </main>
       <Footer />
     </div>

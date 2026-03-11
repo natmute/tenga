@@ -19,6 +19,8 @@ function mapDbProductToProduct(row: {
   price: number;
   original_price: number | null;
   like_count: number | null;
+  rating: number | null;
+  review_count: number | null;
   created_at: string | null;
   product_images?: { image_url: string }[];
   shops?: { id: string; name: string; slug: string; logo: string | null; categories?: { name: string } | null } | null;
@@ -38,8 +40,8 @@ function mapDbProductToProduct(row: {
     description: '',
     category: categoryName,
     inStock: true,
-    rating: 0,
-    reviewCount: 0,
+    rating: row.rating ?? 0,
+    reviewCount: row.review_count ?? 0,
     likeCount: row.like_count ?? 0,
     createdAt: row.created_at ?? '',
   };
@@ -90,7 +92,33 @@ const TrendingPage = () => {
           }
         });
         setShopsMap(shopMap);
-        setTrendingProducts(productRows.map((row) => mapDbProductToProduct(row)));
+
+        const productIds = productRows.map((r) => r.id);
+        let ratingByProduct: Record<string, { sum: number; count: number }> = {};
+        if (productIds.length > 0) {
+          const { data: reviewRows } = await supabase
+            .from('reviews')
+            .select('product_id, rating')
+            .in('product_id', productIds);
+          (reviewRows ?? []).forEach((r: { product_id: string; rating: number }) => {
+            const id = r.product_id;
+            if (!id || r.rating == null) return;
+            if (!ratingByProduct[id]) ratingByProduct[id] = { sum: 0, count: 0 };
+            ratingByProduct[id].sum += r.rating;
+            ratingByProduct[id].count += 1;
+          });
+        }
+
+        const mapped = productRows.map((row) => {
+          const p = mapDbProductToProduct(row);
+          const agg = ratingByProduct[row.id];
+          if (agg && agg.count > 0) {
+            p.rating = Math.round((agg.sum / agg.count) * 10) / 10;
+            p.reviewCount = agg.count;
+          }
+          return p;
+        });
+        setTrendingProducts(mapped);
       }
     })();
   }, []);

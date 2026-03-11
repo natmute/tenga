@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Grid3X3, LayoutList, Loader2 } from 'lucide-react';
+import { Search, Grid3X3, LayoutList, Loader2, Store, ChevronLeft, ChevronRight } from 'lucide-react';
+import useEmblaCarousel from 'embla-carousel-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Header from '@/components/layout/Header';
@@ -85,12 +86,155 @@ function mapDbRowToShop(row: {
   };
 }
 
+/* ─── Featured Brands Carousel (Takealot-style) ─── */
+function FeaturedBrandsCarousel({
+  shops,
+  shopFeaturedProducts,
+}: {
+  shops: Shop[];
+  shopFeaturedProducts: Record<string, Product[]>;
+}) {
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: 'start',
+    loop: false,
+    slidesToScroll: 1,
+    containScroll: 'trimSnaps',
+  });
+
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(false);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCanPrev(emblaApi.canScrollPrev());
+    setCanNext(emblaApi.canScrollNext());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi, onSelect]);
+
+  return (
+    <section className="mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Store className="h-5 w-5" />
+          Featured Brands
+        </h2>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 rounded-full"
+            disabled={!canPrev}
+            onClick={() => emblaApi?.scrollPrev()}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 rounded-full"
+            disabled={!canNext}
+            onClick={() => emblaApi?.scrollNext()}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div ref={emblaRef} className="overflow-hidden rounded-xl">
+        <div className="flex gap-4">
+          {shops.map((shop) => {
+            const featured = shopFeaturedProducts[shop.id] ?? [];
+            return (
+              <Link
+                key={shop.id}
+                to={`/shop/${shop.slug}`}
+                className="min-w-0 shrink-0 grow-0 basis-[85%] sm:basis-[48%] lg:basis-[32%] group"
+              >
+                <div className="rounded-xl border bg-card overflow-hidden transition-shadow hover:shadow-lg">
+                  {/* Banner + Logo overlay */}
+                  <div className="relative h-28 sm:h-32 overflow-hidden">
+                    <img
+                      src={shop.banner}
+                      alt={shop.name}
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                      <img
+                        src={shop.logo}
+                        alt={shop.name}
+                        className="h-10 w-10 rounded-full border-2 border-white object-cover bg-white"
+                      />
+                      <div>
+                        <p className="text-white font-semibold text-sm leading-tight drop-shadow">
+                          {shop.name}
+                        </p>
+                        <p className="text-white/80 text-xs drop-shadow">
+                          {shop.category}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Featured Products Row */}
+                  <div className="p-3">
+                    {featured.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {featured.map((product) => (
+                          <div
+                            key={product.id}
+                            className="aspect-square rounded-lg overflow-hidden bg-secondary"
+                          >
+                            <img
+                              src={product.images[0]}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                        {/* Fill empty slots so the grid stays uniform */}
+                        {Array.from({ length: 3 - featured.length }).map((_, i) => (
+                          <div
+                            key={`empty-${i}`}
+                            className="aspect-square rounded-lg bg-secondary"
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-24 text-muted-foreground text-xs">
+                        No products yet
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      {shop.productCount} product{shop.productCount !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const DiscoverPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const qFromUrl = searchParams.get('q') || '';
   const [searchQuery, setSearchQuery] = useState(qFromUrl);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [products, setProducts] = useState<Product[]>([]);
+  const [discoverShops, setDiscoverShops] = useState<Shop[]>([]);
   const [realShopsMap, setRealShopsMap] = useState<Record<string, Shop>>({});
   const [categories, setCategories] = useState<Category[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
@@ -112,30 +256,47 @@ const DiscoverPage = () => {
     }
   }, [categoryFromUrl]);
 
-  // Fetch real products from verified shops
+  // Fetch products that appear on Discover: from verified shops and (shop is_on_discover OR product is_on_discover)
   useEffect(() => {
     (async () => {
       const { data: shopRows } = await supabase
         .from('shops')
-        .select('id, name, slug, logo, banner, bio, location, categories(name)')
+        .select('id, name, slug, logo, banner, bio, location, categories(name), is_on_discover')
         .eq('is_verified', true);
       if (!shopRows?.length) {
         setProducts([]);
+        setDiscoverShops([]);
         setRealShopsMap({});
         setProductsLoading(false);
         return;
       }
       const shopIds = shopRows.map((s) => s.id);
+      const shopOnDiscover = new Set(shopRows.filter((s) => (s as { is_on_discover?: boolean }).is_on_discover).map((s) => s.id));
       const shopMap: Record<string, Shop> = {};
+      const shopsForDiscover: Shop[] = [];
       shopRows.forEach((r) => {
-        shopMap[r.id] = mapDbRowToShop(r);
+        const shop = mapDbRowToShop(r);
+        shopMap[r.id] = shop;
+        if (shopOnDiscover.has(r.id)) shopsForDiscover.push(shop);
       });
       setRealShopsMap(shopMap);
       const { data: productRows } = await supabase
         .from('products')
         .select('*, product_images(image_url), shops(name, slug, logo, categories(name))')
         .in('shop_id', shopIds);
-      const rows = productRows ?? [];
+      const rows = (productRows ?? []).filter((row: { shop_id: string; is_on_discover?: boolean }) => {
+        const shopInDiscover = shopOnDiscover.has(row.shop_id);
+        const productInDiscover = row.is_on_discover === true;
+        return shopInDiscover || productInDiscover;
+      });
+      const productCountByShopId: Record<string, number> = {};
+      rows.forEach((row: { shop_id: string }) => {
+        productCountByShopId[row.shop_id] = (productCountByShopId[row.shop_id] ?? 0) + 1;
+      });
+      shopsForDiscover.forEach((s) => {
+        s.productCount = productCountByShopId[s.id] ?? 0;
+      });
+      setDiscoverShops([...shopsForDiscover]);
       const productIds = rows.map((r) => r.id);
       let ratingByProduct: Record<string, { sum: number; count: number }> = {};
       if (productIds.length > 0) {
@@ -195,12 +356,43 @@ const DiscoverPage = () => {
   const getShopForProduct = (product: Product): Shop | undefined =>
     realShopsMap[product.shopId];
 
+  const searchTerms = useMemo(
+    () =>
+      searchQuery
+        .toLowerCase()
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean),
+    [searchQuery]
+  );
+
+  const filteredDiscoverShops = useMemo(() => {
+    return discoverShops.filter((shop) => {
+      const searchableText = [shop.name, shop.slug, shop.bio ?? '', shop.category ?? '']
+        .join(' ')
+        .toLowerCase();
+      const matchesSearch =
+        searchTerms.length === 0 ||
+        searchTerms.every((term) => searchableText.includes(term));
+      const matchesCategory =
+        filters.categories.length === 0 ||
+        (shop.category && filters.categories.includes(shop.category));
+      return matchesSearch && matchesCategory;
+    });
+  }, [discoverShops, searchTerms, filters.categories]);
+
+  const shopFeaturedProducts = useMemo(() => {
+    const map: Record<string, Product[]> = {};
+    filteredDiscoverShops.forEach((shop) => {
+      map[shop.id] = products
+        .filter((p) => p.shopId === shop.id)
+        .slice(0, 3);
+    });
+    return map;
+  }, [filteredDiscoverShops, products]);
+
   const filteredProducts = useMemo(() => {
-    const searchTerms = searchQuery
-      .toLowerCase()
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
+    const terms = searchTerms;
     return products.filter((product) => {
       const shop = getShopForProduct(product);
       const searchableText = [
@@ -212,8 +404,8 @@ const DiscoverPage = () => {
         .join(' ')
         .toLowerCase();
       const matchesSearch =
-        searchTerms.length === 0 ||
-        searchTerms.every((term) => searchableText.includes(term));
+        terms.length === 0 ||
+        terms.every((term) => searchableText.includes(term));
       const matchesCategory =
         filters.categories.length === 0 ||
         filters.categories.includes(product.category);
@@ -246,7 +438,7 @@ const DiscoverPage = () => {
         matchesPrice
       );
     });
-  }, [searchQuery, filters, products, realShopsMap]);
+  }, [searchQuery, filters, products, realShopsMap, searchTerms]);
 
   const handleCategoryClick = (categoryName: string | null) => {
     setFilters(prev => ({
@@ -352,6 +544,14 @@ const DiscoverPage = () => {
               </span>
             )}
           </div>
+        )}
+
+        {/* Featured Brands Carousel */}
+        {filteredDiscoverShops.length > 0 && (
+          <FeaturedBrandsCarousel
+            shops={filteredDiscoverShops}
+            shopFeaturedProducts={shopFeaturedProducts}
+          />
         )}
 
         {/* Results Header */}

@@ -305,6 +305,7 @@ export type Database = {
           review_count: number | null
           like_count: number | null
           is_trending: boolean | null
+          is_on_discover: boolean | null
           created_at: string | null
         }
         Insert: {
@@ -322,6 +323,7 @@ export type Database = {
           review_count?: number | null
           like_count?: number | null
           is_trending?: boolean | null
+          is_on_discover?: boolean | null
           created_at?: string | null
         }
         Update: {
@@ -339,6 +341,7 @@ export type Database = {
           review_count?: number | null
           like_count?: number | null
           is_trending?: boolean | null
+          is_on_discover?: boolean | null
           created_at?: string | null
         }
         Relationships: [
@@ -585,10 +588,12 @@ export type Database = {
           location: string | null
           is_verified: boolean | null
           is_featured: boolean | null
+          is_on_discover: boolean | null
           rating: number | null
           review_count: number | null
           follower_count: number | null
           product_count: number | null
+          pricing_tier: string
           created_at: string | null
         }
         Insert: {
@@ -603,10 +608,12 @@ export type Database = {
           location?: string | null
           is_verified?: boolean | null
           is_featured?: boolean | null
+          is_on_discover?: boolean | null
           rating?: number | null
           review_count?: number | null
           follower_count?: number | null
           product_count?: number | null
+          pricing_tier?: string
           created_at?: string | null
         }
         Update: {
@@ -621,10 +628,12 @@ export type Database = {
           location?: string | null
           is_verified?: boolean | null
           is_featured?: boolean | null
+          is_on_discover?: boolean | null
           rating?: number | null
           review_count?: number | null
           follower_count?: number | null
           product_count?: number | null
+          pricing_tier?: string
           created_at?: string | null
         }
         Relationships: [

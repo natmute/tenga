@@ -63,6 +63,24 @@ Optional secret for sender address (defaults to `Tenga <onboarding@resend.dev>`)
 - **Name:** `PROMO_FROM_EMAIL`  
 - **Value:** e.g. `Your Shop <noreply@yourdomain.com>`
 
+## send-admin-promo-to-store-owners
+
+Admin-only. Sends a promotional or announcement email to **store owners** (shop owners). Optionally filter by **pricing tier** (Starter, Growth, Enterprise) so you can target e.g. only Growth tier sellers.
+
+### Body (JSON)
+
+- `subject` (required) – Email subject.
+- `body` (required) – Message body (plain text or HTML).
+- `tier` (optional) – `"all"` (default), `"starter"`, `"growth"`, or `"enterprise"`. Only shop owners whose shop has that `pricing_tier` receive the email.
+
+Uses the same `RESEND_API_KEY` and optional `PROMO_FROM_EMAIL` as above.
+
+### Deploy
+
+```bash
+npx supabase functions deploy send-admin-promo-to-store-owners
+```
+
 ### 4. Sender address
 
 The function sends from `Tenga <onboarding@resend.dev>`. Resend’s free tier allows this for testing. For production, verify your own domain in Resend and change the `from` address in `send-shop-confirmation/index.ts` to e.g. `Tenga <noreply@yourdomain.com>`.

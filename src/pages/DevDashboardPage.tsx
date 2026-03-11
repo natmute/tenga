@@ -4,6 +4,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,10 +20,15 @@ import {
   Shield,
   UserPlus,
   UserMinus,
+  Store,
+  Package,
+  Compass,
 } from 'lucide-react';
 
 type TableStat = { table: string; count: number };
 type DevProfile = { id: string; full_name: string | null; username: string | null; is_dev: boolean };
+type DiscoverShop = { id: string; name: string; slug: string; is_on_discover: boolean };
+type DiscoverProduct = { id: string; name: string; slug: string; shop_id: string; shop_name: string; is_on_discover: boolean };
 
 const DevDashboardPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -35,6 +41,11 @@ const DevDashboardPage = () => {
   const [devProfiles, setDevProfiles] = useState<DevProfile[]>([]);
   const [devProfilesLoading, setDevProfilesLoading] = useState(true);
   const [updatingDevId, setUpdatingDevId] = useState<string | null>(null);
+  const [discoverShops, setDiscoverShops] = useState<DiscoverShop[]>([]);
+  const [discoverProducts, setDiscoverProducts] = useState<DiscoverProduct[]>([]);
+  const [discoverLoading, setDiscoverLoading] = useState(true);
+  const [togglingShopId, setTogglingShopId] = useState<string | null>(null);
+  const [togglingProductId, setTogglingProductId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -93,6 +104,69 @@ const DevDashboardPage = () => {
       setDevProfilesLoading(false);
     })();
   }, [isDev]);
+
+  useEffect(() => {
+    if (!isDev) return;
+    (async () => {
+      const { data: shopRows } = await supabase
+        .from('shops')
+        .select('id, name, slug, is_on_discover')
+        .eq('is_verified', true)
+        .order('name');
+      const shops: DiscoverShop[] = (shopRows ?? []).map((s) => ({
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        is_on_discover: (s as { is_on_discover?: boolean }).is_on_discover === true,
+      }));
+      setDiscoverShops(shops);
+      const shopIds = shops.map((s) => s.id);
+      if (shopIds.length === 0) {
+        setDiscoverProducts([]);
+        setDiscoverLoading(false);
+        return;
+      }
+      const { data: productRows } = await supabase
+        .from('products')
+        .select('id, name, slug, shop_id, is_on_discover, shops(name)')
+        .in('shop_id', shopIds)
+        .order('name');
+      const products: DiscoverProduct[] = (productRows ?? []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        shop_id: p.shop_id,
+        shop_name: (p as { shops?: { name: string } }).shops?.name ?? '—',
+        is_on_discover: (p as { is_on_discover?: boolean }).is_on_discover === true,
+      }));
+      setDiscoverProducts(products);
+      setDiscoverLoading(false);
+    })();
+  }, [isDev]);
+
+  const handleSetShopDiscover = async (shopId: string, onDiscover: boolean) => {
+    setTogglingShopId(shopId);
+    const { error } = await supabase.rpc('set_shop_on_discover', { p_shop_id: shopId, p_on_discover: onDiscover });
+    setTogglingShopId(null);
+    if (error) {
+      toast({ title: 'Failed to update', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setDiscoverShops((prev) => prev.map((s) => (s.id === shopId ? { ...s, is_on_discover: onDiscover } : s)));
+    toast({ title: onDiscover ? 'Shop added to Discover' : 'Shop removed from Discover' });
+  };
+
+  const handleSetProductDiscover = async (productId: string, onDiscover: boolean) => {
+    setTogglingProductId(productId);
+    const { error } = await supabase.rpc('set_product_on_discover', { p_product_id: productId, p_on_discover: onDiscover });
+    setTogglingProductId(null);
+    if (error) {
+      toast({ title: 'Failed to update', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setDiscoverProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, is_on_discover: onDiscover } : p)));
+    toast({ title: onDiscover ? 'Product added to Discover' : 'Product removed from Discover' });
+  };
 
   const handleSetDev = async (profile: DevProfile, makeDev: boolean) => {
     const name = profile.full_name || profile.username || profile.id;
@@ -178,6 +252,27 @@ const DevDashboardPage = () => {
           </p>
         </div>
 
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1 p-1">
+            <TabsTrigger value="overview" className="flex items-center gap-1.5 py-2">
+              <Server className="h-4 w-4 shrink-0" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="discover" className="flex items-center gap-1.5 py-2">
+              <Compass className="h-4 w-4 shrink-0" />
+              Discover
+            </TabsTrigger>
+            <TabsTrigger value="dev-access" className="flex items-center gap-1.5 py-2">
+              <UserPlus className="h-4 w-4 shrink-0" />
+              Dev access
+            </TabsTrigger>
+            <TabsTrigger value="database" className="flex items-center gap-1.5 py-2">
+              <Database className="h-4 w-4 shrink-0" />
+              Database
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
         {/* Environment & links */}
         <Card className="mb-6">
           <CardHeader>
@@ -220,6 +315,93 @@ const DevDashboardPage = () => {
           </CardContent>
         </Card>
 
+          </TabsContent>
+
+          <TabsContent value="discover" className="space-y-6">
+        {/* Discover page curation */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Compass className="h-5 w-5" />
+              Discover page
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Control which shops and products appear on the <strong>/discover</strong> page. Enable a shop to show all its products, or enable individual products.
+            </p>
+            <Button size="sm" variant="outline" className="w-fit" asChild>
+              <Link to="/discover" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-1" />
+                View Discover page
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
+                <Store className="h-4 w-4" />
+                Shops on Discover ({discoverShops.filter((s) => s.is_on_discover).length} of {discoverShops.length})
+              </h4>
+              {discoverLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : discoverShops.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No verified shops yet.</p>
+              ) : (
+                <div className="border rounded-lg divide-y divide-border max-h-[240px] overflow-y-auto">
+                  {discoverShops.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{s.name}</p>
+                        <p className="text-xs text-muted-foreground">/{s.slug}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={s.is_on_discover ? 'default' : 'outline'}
+                        onClick={() => handleSetShopDiscover(s.id, !s.is_on_discover)}
+                        disabled={togglingShopId === s.id}
+                      >
+                        {togglingShopId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : s.is_on_discover ? 'On Discover' : 'Add to Discover'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
+                <Package className="h-4 w-4" />
+                Products on Discover ({discoverProducts.filter((p) => p.is_on_discover).length} of {discoverProducts.length})
+              </h4>
+              {discoverLoading ? null : discoverProducts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No products from verified shops.</p>
+              ) : (
+                <div className="border rounded-lg divide-y divide-border max-h-[280px] overflow-y-auto">
+                  {discoverProducts.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">{p.shop_name} · /{p.slug}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={p.is_on_discover ? 'default' : 'outline'}
+                        onClick={() => handleSetProductDiscover(p.id, !p.is_on_discover)}
+                        disabled={togglingProductId === p.id}
+                      >
+                        {togglingProductId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : p.is_on_discover ? 'On Discover' : 'Add to Discover'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+          </TabsContent>
+
+          <TabsContent value="dev-access" className="space-y-6">
         {/* Dev access management */}
         <Card className="mb-6">
           <CardHeader>
@@ -306,6 +488,9 @@ const DevDashboardPage = () => {
           </CardContent>
         </Card>
 
+          </TabsContent>
+
+          <TabsContent value="database" className="space-y-6">
         {/* Database table stats */}
         <Card className="mb-6">
           <CardHeader>
@@ -340,8 +525,11 @@ const DevDashboardPage = () => {
           </CardContent>
         </Card>
 
-        {/* Info */}
-        <Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* About - outside tabs, always visible at bottom */}
+        <Card className="mt-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Layers className="h-5 w-5" />
