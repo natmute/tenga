@@ -54,10 +54,22 @@ const Header = () => {
       .select('role, is_dev')
       .eq('id', user.id)
       .maybeSingle()
-      .then(({ data }) => {
-        const role = data?.role ?? null;
-        setIsAdmin(role === 'admin');
-        setIsDev(data?.is_dev === true);
+      .then(({ data: byId }) => {
+        if (byId != null) {
+          setIsAdmin(byId.role === 'admin');
+          setIsDev(byId.is_dev === true);
+          return;
+        }
+        supabase
+          .from('profiles')
+          .select('role, is_dev')
+          .eq('user_id', user.id)
+          .maybeSingle()
+          .then(({ data: byUserId }) => {
+            const role = byUserId?.role ?? null;
+            setIsAdmin(role === 'admin');
+            setIsDev(byUserId?.is_dev === true);
+          });
       });
     supabase
       .from('shops')

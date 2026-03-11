@@ -128,6 +128,8 @@ export type Database = {
           shipping_zip_code: string | null
           shipping_country: string | null
           shipping_method: string | null
+          tracking_number: string | null
+          tracking_carrier: string | null
         }
         Insert: {
           id?: string
@@ -146,6 +148,8 @@ export type Database = {
           shipping_zip_code?: string | null
           shipping_country?: string | null
           shipping_method?: string | null
+          tracking_number?: string | null
+          tracking_carrier?: string | null
         }
         Update: {
           id?: string
@@ -164,6 +168,8 @@ export type Database = {
           shipping_zip_code?: string | null
           shipping_country?: string | null
           shipping_method?: string | null
+          tracking_number?: string | null
+          tracking_carrier?: string | null
         }
         Relationships: [
           {

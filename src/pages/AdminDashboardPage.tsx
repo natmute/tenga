@@ -8,10 +8,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
-import { Store, Check, X, ShieldAlert, Loader2, Users, Shield, Trash2, ExternalLink, Star, TrendingUp } from 'lucide-react';
+import { Store, Check, X, ShieldAlert, Loader2, Users, Shield, Trash2, ExternalLink, Star, TrendingUp, Truck } from 'lucide-react';
 
 type Shop = Tables<'shops'>;
 type Product = Tables<'products'> & { shops?: { name: string; slug: string } | null; product_images?: { image_url: string }[] };
+type OrderRow = Tables<'orders'> & {
+  order_items?: (Tables<'order_items'> & { products?: { name: string } | null })[];
+  shops?: { name: string; slug: string } | null;
+};
 
 type ProfileRow = {
   id: string;
@@ -42,6 +46,10 @@ const AdminDashboardPage = () => {
   const [productsLoading, setProductsLoading] = useState(true);
   const [togglingFeaturedId, setTogglingFeaturedId] = useState<string | null>(null);
   const [togglingTrendingId, setTogglingTrendingId] = useState<string | null>(null);
+  const [allOrders, setAllOrders] = useState<OrderRow[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [orderTrackingDraft, setOrderTrackingDraft] = useState<Record<string, { status: string; tracking_carrier: string; tracking_number: string }>>({});
 
   useEffect(() => {
     if (!user) {
@@ -49,11 +57,13 @@ const AdminDashboardPage = () => {
       return;
     }
     (async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
+      let data: { role: string | null } | null = null;
+      const byId = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      data = byId.data;
+      if (data == null) {
+        const byUserId = await supabase.from('profiles').select('role').eq('user_id', user.id).maybeSingle();
+        data = byUserId.data;
+      }
       setProfileRole(data?.role ?? null);
       setProfileLoading(false);
     })();
@@ -113,6 +123,67 @@ const AdminDashboardPage = () => {
       setProductsLoading(false);
     })();
   }, [profileRole]);
+
+  useEffect(() => {
+    if (profileRole !== 'admin') return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, order_items(*, products(name)), shops(name, slug)')
+        .order('created_at', { ascending: false });
+      if (!error && data) setAllOrders(data as OrderRow[]);
+      setOrdersLoading(false);
+    })();
+  }, [profileRole]);
+
+  const getOrderDraft = (order: OrderRow) => {
+    const id = order.id;
+    if (orderTrackingDraft[id]) return orderTrackingDraft[id];
+    const o = order as OrderRow & { tracking_carrier?: string | null; tracking_number?: string | null };
+    return {
+      status: order.status ?? 'pending',
+      tracking_carrier: o.tracking_carrier ?? '',
+      tracking_number: o.tracking_number ?? '',
+    };
+  };
+
+  const setOrderDraft = (orderId: string, field: 'status' | 'tracking_carrier' | 'tracking_number', value: string) => {
+    setOrderTrackingDraft((prev) => {
+      const current = prev[orderId] ?? { status: 'pending', tracking_carrier: '', tracking_number: '' };
+      return { ...prev, [orderId]: { ...current, [field]: value } };
+    });
+  };
+
+  const handleUpdateOrderTracking = async (order: OrderRow) => {
+    const draft = getOrderDraft(order);
+    setUpdatingOrderId(order.id);
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        status: draft.status || null,
+        tracking_carrier: draft.tracking_carrier.trim() || null,
+        tracking_number: draft.tracking_number.trim() || null,
+      } as Record<string, unknown>)
+      .eq('id', order.id);
+    setUpdatingOrderId(null);
+    if (error) {
+      toast({ title: 'Failed to update order', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setAllOrders((prev) =>
+      prev.map((o) =>
+        o.id === order.id
+          ? { ...o, status: draft.status, tracking_carrier: draft.tracking_carrier.trim() || null, tracking_number: draft.tracking_number.trim() || null } as OrderRow
+          : o
+      )
+    );
+    setOrderTrackingDraft((prev) => {
+      const next = { ...prev };
+      delete next[order.id];
+      return next;
+    });
+    toast({ title: 'Order updated', description: 'Status and tracking have been saved.' });
+  };
 
   const handleToggleFeatured = async (shop: Shop) => {
     setTogglingFeaturedId(shop.id);
@@ -462,6 +533,106 @@ const AdminDashboardPage = () => {
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Order tracking */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Order tracking ({allOrders.length})
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Update order status and tracking info. Changes apply to the order for the customer and seller.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {ordersLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : allOrders.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">No orders yet.</p>
+            ) : (
+              <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-background border-b border-border">
+                    <tr>
+                      <th className="text-left py-3 font-medium">Order</th>
+                      <th className="text-left py-3 font-medium">Date</th>
+                      <th className="text-left py-3 font-medium">Shop</th>
+                      <th className="text-left py-3 font-medium">Customer</th>
+                      <th className="text-right py-3 font-medium">Total</th>
+                      <th className="text-left py-3 font-medium">Status</th>
+                      <th className="text-left py-3 font-medium">Tracking</th>
+                      <th className="text-right py-3 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allOrders.map((order) => {
+                      const draft = getOrderDraft(order);
+                      const shopName = order.shops?.name ?? '—';
+                      const customerName = order.customer_name || order.customer_email || `#${order.user_id.slice(0, 8)}`;
+                      return (
+                        <tr key={order.id} className="border-b border-border/50">
+                          <td className="py-2 font-mono text-xs">
+                            {order.order_number ?? order.id.slice(0, 8)}
+                          </td>
+                          <td className="py-2 text-muted-foreground whitespace-nowrap">
+                            {order.created_at ? new Date(order.created_at).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="py-2">{shopName}</td>
+                          <td className="py-2 max-w-[120px] truncate" title={customerName}>{customerName}</td>
+                          <td className="py-2 text-right font-medium">${Number(order.total).toFixed(2)}</td>
+                          <td className="py-2">
+                            <select
+                              value={draft.status}
+                              onChange={(e) => setOrderDraft(order.id, 'status', e.target.value)}
+                              className="h-8 rounded-md border border-input bg-background px-2 text-xs w-full max-w-[100px]"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="processing">Processing</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </td>
+                          <td className="py-2">
+                            <div className="flex flex-col gap-1 max-w-[180px]">
+                              <input
+                                type="text"
+                                placeholder="Carrier"
+                                value={draft.tracking_carrier}
+                                onChange={(e) => setOrderDraft(order.id, 'tracking_carrier', e.target.value)}
+                                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Tracking number"
+                                value={draft.tracking_number}
+                                onChange={(e) => setOrderDraft(order.id, 'tracking_number', e.target.value)}
+                                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                              />
+                            </div>
+                          </td>
+                          <td className="py-2 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUpdateOrderTracking(order)}
+                              disabled={updatingOrderId === order.id}
+                            >
+                              {updatingOrderId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update'}
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

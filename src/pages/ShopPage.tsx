@@ -184,11 +184,13 @@ const ShopPage = () => {
       let shopRow = verifiedRow;
 
       if (!shopRow && user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
+        let profileData: { role: string | null } | null = null;
+        const byId = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+        profileData = byId.data;
+        if (profileData == null) {
+          const byUserId = await supabase.from('profiles').select('role').eq('user_id', user.id).maybeSingle();
+          profileData = byUserId.data;
+        }
         if (profileData?.role === 'admin') {
           const { data: pendingRow } = await supabase
             .from('shops')

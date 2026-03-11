@@ -43,11 +43,13 @@ const DevDashboardPage = () => {
       return;
     }
     (async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role, is_dev')
-        .eq('id', user.id)
-        .maybeSingle();
+      let data: { role: string | null; is_dev: boolean | null } | null = null;
+      const byId = await supabase.from('profiles').select('role, is_dev').eq('id', user.id).maybeSingle();
+      data = byId.data;
+      if (data == null) {
+        const byUserId = await supabase.from('profiles').select('role, is_dev').eq('user_id', user.id).maybeSingle();
+        data = byUserId.data;
+      }
       setProfileRole(data?.role ?? null);
       setIsDev(data?.is_dev === true);
       setProfileLoading(false);
