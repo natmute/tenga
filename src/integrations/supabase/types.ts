@@ -510,6 +510,68 @@ export type Database = {
           }
         ]
       }
+      shop_conversations: {
+        Row: {
+          id: string
+          shop_id: string
+          customer_id: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          customer_id: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          customer_id?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_conversations_shop_id_fkey"
+            columns: ["shop_id"]
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      shop_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          sender_id?: string
+          content?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            referencedRelation: "shop_conversations"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       shops: {
         Row: {
           id: string

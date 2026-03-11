@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  BadgeCheck, MapPin, Star, Grid3X3, Share2, Phone, Mail, ChevronLeft, Loader2 
+  BadgeCheck, MapPin, Star, Grid3X3, Share2, MessageCircle, ChevronLeft, Loader2 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProductCard from '@/components/product/ProductCard';
+import { ShopMessagePanel } from '@/components/shop/ShopMessagePanel';
 import Header from '@/components/layout/Header';
 import CartDrawer from '@/components/layout/CartDrawer';
 import Footer from '@/components/layout/Footer';
@@ -103,9 +104,11 @@ const ShopPage = () => {
   const [rating, setRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [shop, setShop] = useState<Shop | null>(null);
+  const [shopOwnerId, setShopOwnerId] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPendingPreview, setIsPendingPreview] = useState(false);
+  const [messagePanelOpen, setMessagePanelOpen] = useState(false);
 
   const handleShare = async () => {
     const shopSlug = slugParam ?? shop?.slug;
@@ -207,6 +210,7 @@ const ShopPage = () => {
       if (shopRow) {
         const mapped = mapDbShopToShop(shopRow);
         setShop(mapped);
+        setShopOwnerId((shopRow as { owner_id?: string }).owner_id ?? null);
         const { data: productRows } = await supabase
           .from('products')
           .select('*, product_images(image_url)')
@@ -262,6 +266,8 @@ const ShopPage = () => {
         } else {
           setIsFollowing(false);
         }
+      } else {
+        setShopOwnerId(null);
       }
       setLoading(false);
     })();
@@ -390,20 +396,16 @@ const ShopPage = () => {
                   >
                     {isFollowing ? 'Following' : 'Follow'}
                   </Button>
-                  {shop.contactPhone && (
-                    <Button variant="outline" size="icon" className="h-11 w-11 min-w-[44px]" title={`Call ${shop.name}`} asChild>
-                      <a href={`tel:${shop.contactPhone.replace(/\s/g, '')}`}>
-                        <Phone className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
-                  {shop.contactEmail && (
-                    <Button variant="outline" size="icon" className="h-11 w-11 min-w-[44px]" title={`Email ${shop.name}`} asChild>
-                      <a href={`mailto:${shop.contactEmail}`}>
-                        <Mail className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 min-w-[44px]"
+                    title="Message seller"
+                    onClick={() => setMessagePanelOpen(true)}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                  </Button>
                   <Button variant="outline" size="icon" className="h-11 w-11 min-w-[44px]" onClick={handleShare} title="Share shop link">
                     <Share2 className="h-4 w-4" />
                   </Button>
@@ -489,6 +491,14 @@ const ShopPage = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <ShopMessagePanel
+        shop={{ id: shop.id, name: shop.name }}
+        ownerId={shopOwnerId}
+        userId={user?.id ?? null}
+        open={messagePanelOpen}
+        onOpenChange={setMessagePanelOpen}
+      />
 
       <Footer />
     </div>

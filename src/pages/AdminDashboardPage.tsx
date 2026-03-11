@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -8,7 +8,24 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
-import { Store, Check, X, ShieldAlert, Loader2, Users, Shield, Trash2, ExternalLink, Star, TrendingUp, Truck } from 'lucide-react';
+import { Store, Check, X, ShieldAlert, Loader2, Users, Shield, Trash2, ExternalLink, Star, TrendingUp, Truck, Package, Plus, MessageCircle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 type Shop = Tables<'shops'>;
 type Product = Tables<'products'> & { shops?: { name: string; slug: string } | null; product_images?: { image_url: string }[] };
@@ -50,6 +67,27 @@ const AdminDashboardPage = () => {
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [orderTrackingDraft, setOrderTrackingDraft] = useState<Record<string, { status: string; tracking_carrier: string; tracking_number: string }>>({});
+  const [orderFilterStatus, setOrderFilterStatus] = useState<string>('');
+  const [orderFilterShopId, setOrderFilterShopId] = useState<string>('');
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [manageProductsShopId, setManageProductsShopId] = useState<string | null>(null);
+  const [productsForShop, setProductsForShop] = useState<Product[]>([]);
+  const [productsForShopLoading, setProductsForShopLoading] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
+  const [addProductName, setAddProductName] = useState('');
+  const [addProductPrice, setAddProductPrice] = useState('');
+  const [addProductDescription, setAddProductDescription] = useState('');
+  const [addProductImageFile, setAddProductImageFile] = useState<File | null>(null);
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [addProductError, setAddProductError] = useState<string | null>(null);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const [adminConversations, setAdminConversations] = useState<{ id: string; shop_id: string; customer_id: string; updated_at: string | null; shops?: { name: string; slug: string } | null }[]>([]);
+  const [adminConversationsLoading, setAdminConversationsLoading] = useState(false);
+  const [adminSelectedConvId, setAdminSelectedConvId] = useState<string | null>(null);
+  const [adminConvMessages, setAdminConvMessages] = useState<{ id: string; sender_id: string; content: string; created_at: string | null }[]>([]);
+  const [adminConvMessagesLoading, setAdminConvMessagesLoading] = useState(false);
+  const [adminCustomerNames, setAdminCustomerNames] = useState<Record<string, string>>({});
+  const [adminShopOwnerIds, setAdminShopOwnerIds] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) {
@@ -136,6 +174,180 @@ const AdminDashboardPage = () => {
     })();
   }, [profileRole]);
 
+  useEffect(() => {
+    if (profileRole !== 'admin') return;
+    setAdminConversationsLoading(true);
+    supabase
+      .from('shop_conversations')
+      .select('id, shop_id, customer_id, updated_at, shops(name, slug)')
+      .order('updated_at', { ascending: false })
+      .then(({ data }) => {
+        const list = (data ?? []) as { id: string; shop_id: string; customer_id: string; updated_at: string | null; shops?: { name: string; slug: string } | null }[];
+        setAdminConversations(list);
+        setAdminConversationsLoading(false);
+        const customerIds = [...new Set(list.map((c) => c.customer_id))];
+        const shopIds = [...new Set(list.map((c) => c.shop_id))];
+        if (customerIds.length > 0) {
+          supabase.from('profiles').select('id, full_name, username').in('id', customerIds).then(({ data: profs }) => {
+            const names: Record<string, string> = {};
+            (profs ?? []).forEach((p: { id: string; full_name: string | null; username: string | null }) => {
+              names[p.id] = p.full_name || p.username || 'Customer';
+            });
+            setAdminCustomerNames(names);
+          });
+          supabase.from('profiles').select('user_id, full_name, username').in('user_id', customerIds).then(({ data: profs }) => {
+            if (profs?.length) {
+              setAdminCustomerNames((prev) => {
+                const next = { ...prev };
+                (profs as { user_id: string; full_name: string | null; username: string | null }[]).forEach((p) => {
+                  next[p.user_id] = p.full_name || p.username || 'Customer';
+                });
+                return next;
+              });
+            }
+          });
+        }
+        if (shopIds.length > 0) {
+          supabase.from('shops').select('id, owner_id').in('id', shopIds).then(({ data: shopRows }) => {
+            const map: Record<string, string> = {};
+            (shopRows ?? []).forEach((s: { id: string; owner_id: string }) => { map[s.id] = s.owner_id; });
+            setAdminShopOwnerIds(map);
+          });
+        }
+      });
+  }, [profileRole]);
+
+  useEffect(() => {
+    if (!adminSelectedConvId) {
+      setAdminConvMessages([]);
+      return;
+    }
+    setAdminConvMessagesLoading(true);
+    supabase
+      .from('shop_messages')
+      .select('id, sender_id, content, created_at')
+      .eq('conversation_id', adminSelectedConvId)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        setAdminConvMessages((data ?? []) as { id: string; sender_id: string; content: string; created_at: string | null }[]);
+        setAdminConvMessagesLoading(false);
+      });
+  }, [adminSelectedConvId]);
+
+  useEffect(() => {
+    if (profileRole !== 'admin' || !manageProductsShopId) {
+      setProductsForShop([]);
+      return;
+    }
+    setProductsForShopLoading(true);
+    supabase
+      .from('products')
+      .select('*, product_images(image_url), shops(name, slug)')
+      .eq('shop_id', manageProductsShopId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setProductsForShop((data ?? []) as Product[]);
+        setProductsForShopLoading(false);
+      });
+  }, [profileRole, manageProductsShopId]);
+
+  const slugFromName = (name: string) =>
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '') || 'product-' + Date.now();
+
+  const handleAddProductForShop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manageProductsShopId) return;
+    setAddProductError(null);
+    const name = addProductName.trim();
+    const price = parseFloat(addProductPrice);
+    if (!name || isNaN(price) || price < 0) {
+      setAddProductError('Name and a valid price are required.');
+      return;
+    }
+    if (!addProductImageFile) {
+      setAddProductError('Please add a product image.');
+      return;
+    }
+    setAddingProduct(true);
+    try {
+      const slug = slugFromName(name) || 'product-' + Date.now();
+      const { data: product, error: insertErr } = await supabase
+        .from('products')
+        .insert({
+          shop_id: manageProductsShopId,
+          name,
+          slug,
+          price,
+          description: addProductDescription.trim() || null,
+          in_stock: true,
+          stock_count: null,
+          rating: null,
+          review_count: null,
+          like_count: null,
+        })
+        .select('id')
+        .single();
+      if (insertErr) {
+        setAddProductError(insertErr.message);
+        setAddingProduct(false);
+        return;
+      }
+      const ext = addProductImageFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `products/${manageProductsShopId}/${product.id}/${Date.now()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from('shop-assets')
+        .upload(path, addProductImageFile, { cacheControl: '3600', upsert: false });
+      if (uploadErr) {
+        setAddProductError('Product created but image upload failed: ' + uploadErr.message);
+        setAddingProduct(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from('shop-assets').getPublicUrl(path);
+      await supabase.from('product_images').insert({
+        product_id: product.id,
+        image_url: urlData.publicUrl,
+      });
+      const { data: updated } = await supabase
+        .from('products')
+        .select('*, product_images(image_url), shops(name, slug)')
+        .eq('shop_id', manageProductsShopId)
+        .order('created_at', { ascending: false });
+      setProductsForShop((updated ?? []) as Product[]);
+      const { data: allUpdated } = await supabase
+        .from('products')
+        .select('*, product_images(image_url), shops(name, slug)')
+        .order('created_at', { ascending: false });
+      if (allUpdated) setAllProducts(allUpdated as Product[]);
+      setAddProductOpen(false);
+      setAddProductName('');
+      setAddProductPrice('');
+      setAddProductDescription('');
+      setAddProductImageFile(null);
+      toast({ title: 'Product added', description: `"${name}" has been added to the shop.` });
+    } catch (err) {
+      setAddProductError(err instanceof Error ? err.message : 'Something went wrong.');
+    }
+    setAddingProduct(false);
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    if (!confirm(`Delete product "${product.name}"? This cannot be undone.`)) return;
+    setDeletingProductId(product.id);
+    const { error } = await supabase.from('products').delete().eq('id', product.id);
+    setDeletingProductId(null);
+    if (!error) {
+      setProductsForShop((prev) => prev.filter((p) => p.id !== product.id));
+      setAllProducts((prev) => prev.filter((p) => p.id !== product.id));
+      toast({ title: 'Product removed', description: `"${product.name}" has been deleted.` });
+    } else {
+      toast({ title: 'Failed to delete product', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const getOrderDraft = (order: OrderRow) => {
     const id = order.id;
     if (orderTrackingDraft[id]) return orderTrackingDraft[id];
@@ -146,6 +358,12 @@ const AdminDashboardPage = () => {
       tracking_number: o.tracking_number ?? '',
     };
   };
+
+  const filteredOrders = allOrders.filter((order) => {
+    if (orderFilterStatus && (order.status ?? 'pending') !== orderFilterStatus) return false;
+    if (orderFilterShopId && order.shop_id !== orderFilterShopId) return false;
+    return true;
+  });
 
   const setOrderDraft = (orderId: string, field: 'status' | 'tracking_carrier' | 'tracking_number', value: string) => {
     setOrderTrackingDraft((prev) => {
@@ -540,29 +758,216 @@ const AdminDashboardPage = () => {
           </CardContent>
         </Card>
 
-        {/* Order tracking */}
+        {/* Manage products: add/remove products for any shop */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Manage products
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Add or remove products for any shop. Select a shop below, then add products or delete existing ones.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-start">
+              <div className="w-full sm:max-w-xs space-y-2">
+                <Label>Shop</Label>
+                <Select value={manageProductsShopId ?? '__none__'} onValueChange={(v) => setManageProductsShopId(v === '__none__' ? null : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a shop" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Select a shop</SelectItem>
+                    {allShops.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} / {s.slug}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {manageProductsShopId && (
+                <Dialog open={addProductOpen} onOpenChange={setAddProductOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="gap-1">
+                      <Plus className="h-4 w-4" />
+                      Add product
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Add product</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleAddProductForShop} className="space-y-4">
+                      {addProductError && (
+                        <p className="text-sm text-destructive">{addProductError}</p>
+                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-product-name">Name</Label>
+                        <Input
+                          id="admin-product-name"
+                          value={addProductName}
+                          onChange={(e) => setAddProductName(e.target.value)}
+                          placeholder="Product name"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-product-price">Price ($)</Label>
+                        <Input
+                          id="admin-product-price"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={addProductPrice}
+                          onChange={(e) => setAddProductPrice(e.target.value)}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-product-desc">Description (optional)</Label>
+                        <Input
+                          id="admin-product-desc"
+                          value={addProductDescription}
+                          onChange={(e) => setAddProductDescription(e.target.value)}
+                          placeholder="Short description"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-product-image">Image</Label>
+                        <Input
+                          id="admin-product-image"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setAddProductImageFile(e.target.files?.[0] ?? null)}
+                          required
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => setAddProductOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={addingProduct}>
+                          {addingProduct ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add product'}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+            {manageProductsShopId && (
+              <>
+                {productsForShopLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : productsForShop.length === 0 ? (
+                  <p className="text-muted-foreground py-4">No products in this shop yet. Add one above.</p>
+                ) : (
+                  <div className="border rounded-lg divide-y divide-border max-h-[320px] overflow-y-auto">
+                    {productsForShop.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between gap-4 p-3"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {p.product_images?.[0]?.image_url ? (
+                            <img src={p.product_images[0].image_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
+                          ) : (
+                            <div className="h-12 w-12 rounded-lg bg-muted shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{p.name}</p>
+                            <p className="text-sm text-muted-foreground">${Number(p.price).toFixed(2)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button size="sm" variant="outline" asChild>
+                            <Link to={`/product/${p.slug}`} target="_blank" rel="noopener noreferrer">
+                              View
+                            </Link>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteProduct(p)}
+                            disabled={deletingProductId === p.id}
+                          >
+                            {deletingProductId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Order management */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5" />
-              Order tracking ({allOrders.length})
+              Order management ({filteredOrders.length}{filteredOrders.length !== allOrders.length ? ` of ${allOrders.length}` : ''})
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Update order status and tracking info. Changes apply to the order for the customer and seller.
+              View all orders, filter by status or shop, update status and tracking. Expand a row to see full details.
             </p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-muted-foreground whitespace-nowrap text-xs">Status</Label>
+                <Select value={orderFilterStatus || '__all__'} onValueChange={(v) => setOrderFilterStatus(v === '__all__' ? '' : v)}>
+                  <SelectTrigger className="w-[140px] h-9">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="shipped">Shipped</SelectItem>
+                    <SelectItem value="delivered">Delivered</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-muted-foreground whitespace-nowrap text-xs">Shop</Label>
+                <Select value={orderFilterShopId || '__all__'} onValueChange={(v) => setOrderFilterShopId(v === '__all__' ? '' : v)}>
+                  <SelectTrigger className="w-[180px] h-9">
+                    <SelectValue placeholder="All shops" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All shops</SelectItem>
+                    {allShops.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {ordersLoading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : allOrders.length === 0 ? (
-              <p className="text-muted-foreground text-center py-12">No orders yet.</p>
+            ) : filteredOrders.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">
+                {allOrders.length === 0 ? 'No orders yet.' : 'No orders match the current filters.'}
+              </p>
             ) : (
-              <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-background border-b border-border">
+                  <thead className="border-b border-border">
                     <tr>
+                      <th className="text-left py-3 font-medium w-8"></th>
                       <th className="text-left py-3 font-medium">Order</th>
                       <th className="text-left py-3 font-medium">Date</th>
                       <th className="text-left py-3 font-medium">Shop</th>
@@ -574,67 +979,205 @@ const AdminDashboardPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {allOrders.map((order) => {
+                    {filteredOrders.map((order) => {
                       const draft = getOrderDraft(order);
                       const shopName = order.shops?.name ?? '—';
                       const customerName = order.customer_name || order.customer_email || `#${order.user_id.slice(0, 8)}`;
+                      const isExpanded = expandedOrderId === order.id;
+                      const o = order as OrderRow & { tracking_carrier?: string | null; tracking_number?: string | null; customer_phone?: string | null; shipping_address?: string | null; shipping_city?: string | null; shipping_state?: string | null; shipping_zip_code?: string | null; shipping_country?: string | null; shipping_method?: string | null };
                       return (
-                        <tr key={order.id} className="border-b border-border/50">
-                          <td className="py-2 font-mono text-xs">
-                            {order.order_number ?? order.id.slice(0, 8)}
-                          </td>
-                          <td className="py-2 text-muted-foreground whitespace-nowrap">
-                            {order.created_at ? new Date(order.created_at).toLocaleDateString() : '—'}
-                          </td>
-                          <td className="py-2">{shopName}</td>
-                          <td className="py-2 max-w-[120px] truncate" title={customerName}>{customerName}</td>
-                          <td className="py-2 text-right font-medium">${Number(order.total).toFixed(2)}</td>
-                          <td className="py-2">
-                            <select
-                              value={draft.status}
-                              onChange={(e) => setOrderDraft(order.id, 'status', e.target.value)}
-                              className="h-8 rounded-md border border-input bg-background px-2 text-xs w-full max-w-[100px]"
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="processing">Processing</option>
-                              <option value="shipped">Shipped</option>
-                              <option value="delivered">Delivered</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
-                          </td>
-                          <td className="py-2">
-                            <div className="flex flex-col gap-1 max-w-[180px]">
-                              <input
-                                type="text"
-                                placeholder="Carrier"
-                                value={draft.tracking_carrier}
-                                onChange={(e) => setOrderDraft(order.id, 'tracking_carrier', e.target.value)}
-                                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                              />
-                              <input
-                                type="text"
-                                placeholder="Tracking number"
-                                value={draft.tracking_number}
-                                onChange={(e) => setOrderDraft(order.id, 'tracking_number', e.target.value)}
-                                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                              />
-                            </div>
-                          </td>
-                          <td className="py-2 text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUpdateOrderTracking(order)}
-                              disabled={updatingOrderId === order.id}
-                            >
-                              {updatingOrderId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update'}
-                            </Button>
-                          </td>
-                        </tr>
+                        <React.Fragment key={order.id}>
+                          <tr className="border-b border-border/50">
+                            <td className="py-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                              >
+                                <span className="text-muted-foreground">{isExpanded ? '−' : '+'}</span>
+                              </Button>
+                            </td>
+                            <td className="py-2 font-mono text-xs">
+                              {order.order_number ?? order.id.slice(0, 8)}
+                            </td>
+                            <td className="py-2 text-muted-foreground whitespace-nowrap">
+                              {order.created_at ? new Date(order.created_at).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="py-2">{shopName}</td>
+                            <td className="py-2 max-w-[120px] truncate" title={customerName}>{customerName}</td>
+                            <td className="py-2 text-right font-medium">${Number(order.total).toFixed(2)}</td>
+                            <td className="py-2">
+                              <select
+                                value={draft.status}
+                                onChange={(e) => setOrderDraft(order.id, 'status', e.target.value)}
+                                className="h-8 rounded-md border border-input bg-background px-2 text-xs w-full max-w-[100px]"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="processing">Processing</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
+                            </td>
+                            <td className="py-2">
+                              <div className="flex flex-col gap-1 max-w-[180px]">
+                                <input
+                                  type="text"
+                                  placeholder="Carrier"
+                                  value={draft.tracking_carrier}
+                                  onChange={(e) => setOrderDraft(order.id, 'tracking_carrier', e.target.value)}
+                                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Tracking number"
+                                  value={draft.tracking_number}
+                                  onChange={(e) => setOrderDraft(order.id, 'tracking_number', e.target.value)}
+                                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                                />
+                              </div>
+                            </td>
+                            <td className="py-2 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateOrderTracking(order)}
+                                disabled={updatingOrderId === order.id}
+                              >
+                                {updatingOrderId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update'}
+                              </Button>
+                            </td>
+                            </tr>
+                          {isExpanded && (
+                            <tr className="border-b border-border/50 bg-muted/30">
+                              <td colSpan={9} className="p-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <p className="font-medium text-muted-foreground mb-1">Customer & contact</p>
+                                    <p className="font-medium">{o.customer_name || '—'}</p>
+                                    {o.customer_email && <p><a href={`mailto:${o.customer_email}`} className="text-primary hover:underline">{o.customer_email}</a></p>}
+                                    {o.customer_phone && <p><a href={`tel:${o.customer_phone}`} className="text-primary hover:underline">{o.customer_phone}</a></p>}
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-muted-foreground mb-1">Shipping</p>
+                                    <p>{(o.shipping_address || o.shipping_city) ? [o.shipping_address, [o.shipping_city, o.shipping_state, o.shipping_zip_code].filter(Boolean).join(', '), o.shipping_country].filter(Boolean).join(', ') : '—'}</p>
+                                    {o.shipping_method && <p className="capitalize text-muted-foreground">Method: {o.shipping_method.replace(/-/g, ' ')}</p>}
+                                  </div>
+                                </div>
+                                {order.order_items && order.order_items.length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-border">
+                                    <p className="font-medium text-muted-foreground mb-2">Items</p>
+                                    <ul className="space-y-1">
+                                      {order.order_items.map((oi) => (
+                                        <li key={oi.id} className="flex justify-between">
+                                          <span>{oi.products?.name ?? 'Product'} × {oi.quantity}</span>
+                                          <span>${Number(oi.price * oi.quantity).toFixed(2)}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Messages (customer–seller) */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              Messages ({adminConversations.length})
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              View conversations between customers and sellers. Select a thread to read messages.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {adminConversationsLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : adminConversations.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">No conversations yet.</p>
+            ) : (
+              <div className="flex flex-col md:flex-row gap-4">
+                <ul className="space-y-1 border-r border-border pr-4 min-w-[220px] max-h-[320px] overflow-y-auto">
+                  {adminConversations.map((c) => {
+                    const shopName = c.shops?.name ?? 'Shop';
+                    const customerName = adminCustomerNames[c.customer_id] ?? 'Customer';
+                    const label = `${shopName} · ${customerName}`;
+                    return (
+                      <li key={c.id}>
+                        <Button
+                          variant={adminSelectedConvId === c.id ? 'secondary' : 'ghost'}
+                          className="w-full justify-start text-left text-sm h-auto py-2"
+                          onClick={() => setAdminSelectedConvId(c.id)}
+                        >
+                          <span className="truncate">{label}</span>
+                          {c.updated_at && (
+                            <span className="text-xs text-muted-foreground ml-1 shrink-0">
+                              {new Date(c.updated_at).toLocaleDateString()}
+                            </span>
+                          )}
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="flex-1 flex flex-col min-h-[280px]">
+                  {!adminSelectedConvId ? (
+                    <p className="text-muted-foreground text-center py-8">Select a conversation</p>
+                  ) : adminConvMessagesLoading ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="space-y-3 overflow-y-auto max-h-[320px] pr-2">
+                      {adminConvMessages.map((m) => {
+                        const conv = adminConversations.find((c) => c.id === adminSelectedConvId);
+                        const isCustomer = conv && m.sender_id === conv.customer_id;
+                        const senderLabel = isCustomer
+                          ? (adminCustomerNames[m.sender_id] ?? 'Customer')
+                          : (conv ? (allShops.find((s) => s.id === conv.shop_id)?.name ?? 'Shop') : 'Seller');
+                        return (
+                          <div
+                            key={m.id}
+                            className={cn(
+                              'flex flex-col',
+                              isCustomer ? 'items-start' : 'items-end'
+                            )}
+                          >
+                            <p className="text-xs font-medium text-muted-foreground mb-0.5">{senderLabel}</p>
+                            <div
+                              className={cn(
+                                'rounded-2xl px-4 py-2 text-sm max-w-[85%]',
+                                isCustomer ? 'bg-muted text-foreground' : 'bg-primary text-primary-foreground'
+                              )}
+                            >
+                              <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                              {m.created_at && (
+                                <p className={cn('text-xs mt-1', isCustomer ? 'text-muted-foreground' : 'text-primary-foreground/80')}>
+                                  {new Date(m.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

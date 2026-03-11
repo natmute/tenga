@@ -36,6 +36,33 @@ npx supabase functions deploy send-shop-confirmation
 
 Find **Project ref** in Dashboard → Project Settings → General.
 
+## send-promotional-email
+
+Sends promotional emails to a shop’s followers and/or past customers. Uses the same Resend API key (`RESEND_API_KEY`). Only the shop owner can call this function.
+
+### Body (JSON)
+
+- `shop_id` (required) – UUID of the shop.
+- `subject` (required) – Email subject.
+- `body` (required) – Message body (plain text or HTML).
+- `audience` (optional) – `"followers"`, `"customers"`, or both in an array. Default: `["followers"]`.
+
+### Recipients
+
+- **Followers**: users in `shop_followers` for this shop; emails are resolved via Auth Admin.
+- **Past customers**: distinct `customer_email` from `orders` for this shop.
+
+### Deploy
+
+```bash
+npx supabase functions deploy send-promotional-email
+```
+
+Optional secret for sender address (defaults to `Tenga <onboarding@resend.dev>`):
+
+- **Name:** `PROMO_FROM_EMAIL`  
+- **Value:** e.g. `Your Shop <noreply@yourdomain.com>`
+
 ### 4. Sender address
 
 The function sends from `Tenga <onboarding@resend.dev>`. Resend’s free tier allows this for testing. For production, verify your own domain in Resend and change the `from` address in `send-shop-confirmation/index.ts` to e.g. `Tenga <noreply@yourdomain.com>`.

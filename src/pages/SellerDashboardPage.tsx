@@ -27,17 +27,20 @@ import {
   MessageSquare,
   Loader2,
   Store,
-  Settings,
   ShoppingCart,
-  Phone,
+  Send,
   Mail,
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type Shop = Tables<'shops'>;
 type Product = Tables<'products'>;
 type Review = Tables<'reviews'> & { products?: { name: string } | null };
 type OrderRow = Tables<'orders'> & {
   order_items?: (Tables<'order_items'> & { products?: { name: string } | null })[];
+  tracking_carrier?: string | null;
+  tracking_number?: string | null;
 };
 
 type CustomerProfile = { id: string; full_name: string | null; username: string };
@@ -74,10 +77,24 @@ const SellerDashboardPage = () => {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [customerByUserId, setCustomerByUserId] = useState<Record<string, CustomerProfile>>({});
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [savingContact, setSavingContact] = useState(false);
-  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [conversations, setConversations] = useState<{ id: string; customer_id: string; updated_at: string | null }[]>([]);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
+  const [convMessages, setConvMessages] = useState<{ id: string; sender_id: string; content: string; created_at: string | null }[]>([]);
+  const [convMessagesLoading, setConvMessagesLoading] = useState(false);
+  const [messageDraft, setMessageDraft] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [customerNames, setCustomerNames] = useState<Record<string, { full_name: string | null; username: string | null }>>({});
+  const [customerAvatars, setCustomerAvatars] = useState<Record<string, string | null>>({});
+  const [sellerProfile, setSellerProfile] = useState<{ full_name: string | null; username: string | null; avatar_url: string | null } | null>(null);
+  const [shipDialogOrderId, setShipDialogOrderId] = useState<string | null>(null);
+  const [shipCarrier, setShipCarrier] = useState('');
+  const [shipTrackingNumber, setShipTrackingNumber] = useState('');
+  const [shippingOrderId, setShippingOrderId] = useState<string | null>(null);
+  const [promoSubject, setPromoSubject] = useState('');
+  const [promoBody, setPromoBody] = useState('');
+  const [promoAudience, setPromoAudience] = useState<string[]>(['followers']);
+  const [promoSending, setPromoSending] = useState(false);
 
   const handleMarkDelivered = async (orderId: string) => {
     setUpdatingOrderId(orderId);
@@ -88,25 +105,78 @@ const SellerDashboardPage = () => {
     setUpdatingOrderId(null);
   };
 
-  const handleSaveContact = async (e: React.FormEvent) => {
+  const openShipDialog = (order: OrderRow) => {
+    setShipDialogOrderId(order.id);
+    setShipCarrier((order as OrderRow).tracking_carrier ?? '');
+    setShipTrackingNumber((order as OrderRow).tracking_number ?? '');
+  };
+
+  const handleMarkShipped = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shop) return;
-    setSavingContact(true);
-    const { error } = await supabase
-      .from('shops')
-      .update({
-        contact_email: contactEmail.trim() || null,
-        contact_phone: contactPhone.trim() || null,
-      } as Record<string, unknown>)
-      .eq('id', shop.id);
-    setSavingContact(false);
-    if (error) {
-      toast({ title: 'Could not save contact info', description: error.message, variant: 'destructive' });
+    if (!shipDialogOrderId) return;
+    const carrier = shipCarrier.trim();
+    const tracking = shipTrackingNumber.trim();
+    if (!carrier || !tracking) {
+      toast({ title: 'Required', description: 'Please enter carrier and tracking number.', variant: 'destructive' });
       return;
     }
-    setShop((prev) => prev ? { ...prev, contact_email: contactEmail.trim() || null, contact_phone: contactPhone.trim() || null } as Shop : null);
-    setIsEditingContact(false);
-    toast({ title: 'Contact info saved', description: 'Call and email buttons will now show on your shop page.' });
+    setShippingOrderId(shipDialogOrderId);
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        status: 'shipped',
+        tracking_carrier: carrier,
+        tracking_number: tracking,
+      } as Record<string, unknown>)
+      .eq('id', shipDialogOrderId);
+    setShippingOrderId(null);
+    setShipDialogOrderId(null);
+    setShipCarrier('');
+    setShipTrackingNumber('');
+    if (error) {
+      toast({ title: 'Could not update order', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === shipDialogOrderId
+          ? { ...o, status: 'shipped', tracking_carrier: carrier, tracking_number: tracking } as OrderRow
+          : o
+      )
+    );
+    toast({ title: 'Order marked as shipped', description: 'Carrier and tracking are saved. They will appear in the admin dashboard.' });
+  };
+
+  const handleSendPromo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shop || !user) return;
+    const subject = promoSubject.trim();
+    const body = promoBody.trim();
+    if (!subject || !body) {
+      toast({ title: 'Required', description: 'Please enter subject and message.', variant: 'destructive' });
+      return;
+    }
+    if (promoAudience.length === 0) {
+      toast({ title: 'Audience', description: 'Select at least one audience: Followers and/or Past customers.', variant: 'destructive' });
+      return;
+    }
+    setPromoSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-promotional-email', {
+        body: { shop_id: shop.id, subject, body, audience: promoAudience },
+      });
+      if (error) throw error;
+      const sent = (data as { sent?: number })?.sent ?? 0;
+      const msg = (data as { message?: string })?.message ?? `Sent to ${sent} recipient(s).`;
+      toast({ title: 'Promotional email sent', description: msg });
+      setPromoSubject('');
+      setPromoBody('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Could not send', description: message, variant: 'destructive' });
+    } finally {
+      setPromoSending(false);
+    }
   };
 
   useEffect(() => {
@@ -127,14 +197,6 @@ const SellerDashboardPage = () => {
 
   useEffect(() => {
     if (!shop) return;
-    const row = shop as Shop & { contact_email?: string | null; contact_phone?: string | null };
-    setContactEmail(row.contact_email ?? '');
-    setContactPhone(row.contact_phone ?? '');
-    setIsEditingContact(false);
-  }, [shop]);
-
-  useEffect(() => {
-    if (!shop) return;
     setProductsLoading(true);
     supabase
       .from('products')
@@ -146,6 +208,92 @@ const SellerDashboardPage = () => {
         setProductsLoading(false);
       });
   }, [shop]);
+
+  useEffect(() => {
+    if (!shop) return;
+    setConversationsLoading(true);
+    supabase
+      .from('shop_conversations')
+      .select('id, customer_id, updated_at')
+      .eq('shop_id', shop.id)
+      .order('updated_at', { ascending: false })
+      .then(({ data }) => {
+        setConversations((data ?? []) as { id: string; customer_id: string; updated_at: string | null }[]);
+        setConversationsLoading(false);
+        const customerIds = [...new Set((data ?? []).map((c) => c.customer_id).filter(Boolean))];
+        if (customerIds.length > 0) {
+          supabase
+            .from('profiles')
+            .select('id, full_name, username, avatar_url')
+            .in('id', customerIds)
+            .then(({ data: profiles }) => {
+              const map: Record<string, { full_name: string | null; username: string | null }> = {};
+              const avatars: Record<string, string | null> = {};
+              (profiles ?? []).forEach((p: { id: string; full_name: string | null; username: string | null; avatar_url?: string | null }) => {
+                map[p.id] = { full_name: p.full_name, username: p.username };
+                avatars[p.id] = p.avatar_url ?? null;
+              });
+              setCustomerNames(map);
+              setCustomerAvatars(avatars);
+            });
+        }
+      });
+  }, [shop]);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const byId = await supabase.from('profiles').select('full_name, username, avatar_url').eq('id', user.id).maybeSingle();
+      if (byId.data) {
+        setSellerProfile({ full_name: byId.data.full_name, username: byId.data.username, avatar_url: byId.data.avatar_url ?? null });
+      } else {
+        const byUserId = await supabase.from('profiles').select('full_name, username, avatar_url').eq('user_id', user.id).maybeSingle();
+        if (byUserId.data) setSellerProfile({ full_name: byUserId.data.full_name, username: byUserId.data.username, avatar_url: byUserId.data.avatar_url ?? null });
+      }
+    })();
+  }, [user]);
+
+  useEffect(() => {
+    if (!selectedConvId) {
+      setConvMessages([]);
+      return;
+    }
+    setConvMessagesLoading(true);
+    supabase
+      .from('shop_messages')
+      .select('id, sender_id, content, created_at')
+      .eq('conversation_id', selectedConvId)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        setConvMessages((data ?? []) as { id: string; sender_id: string; content: string; created_at: string | null }[]);
+        setConvMessagesLoading(false);
+      });
+  }, [selectedConvId]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !selectedConvId || !messageDraft.trim()) return;
+    setSendingMessage(true);
+    try {
+      const { error } = await supabase.from('shop_messages').insert({
+        conversation_id: selectedConvId,
+        sender_id: user.id,
+        content: messageDraft.trim(),
+      });
+      if (error) throw error;
+      setMessageDraft('');
+      const { data } = await supabase
+        .from('shop_messages')
+        .select('id, sender_id, content, created_at')
+        .eq('conversation_id', selectedConvId)
+        .order('created_at', { ascending: true });
+      setConvMessages((data ?? []) as { id: string; sender_id: string; content: string; created_at: string | null }[]);
+    } catch (e) {
+      toast({ title: 'Could not send message', description: (e as Error).message, variant: 'destructive' });
+    } finally {
+      setSendingMessage(false);
+    }
+  };
 
   useEffect(() => {
     if (!shop) return;
@@ -373,83 +521,8 @@ const SellerDashboardPage = () => {
           </div>
         </div>
 
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Phone className="h-4 w-4" />
-              <Mail className="h-4 w-4" />
-              Shop contact (Call & Email on your shop page)
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              These appear as call and email buttons on your public shop page. Add them so customers can reach you.
-            </p>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const row = shop as Shop & { contact_email?: string | null; contact_phone?: string | null };
-              const hasSavedContact = (row.contact_email?.trim() || row.contact_phone?.trim()) ?? false;
-              const showReadOnly = hasSavedContact && !isEditingContact;
-
-              if (showReadOnly) {
-                return (
-                  <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
-                    <div className="flex-1 space-y-2">
-                      <Label>Email</Label>
-                      <p className="text-sm font-medium text-foreground py-2">{contactEmail || '—'}</p>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <Label>Phone</Label>
-                      <p className="text-sm font-medium text-foreground py-2">{contactPhone || '—'}</p>
-                    </div>
-                    <div className="flex items-end">
-                      <Button type="button" variant="outline" onClick={() => setIsEditingContact(true)}>
-                        Edit
-                      </Button>
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <form onSubmit={handleSaveContact} className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="contact_email">Email</Label>
-                    <Input
-                      id="contact_email"
-                      type="email"
-                      placeholder="shop@example.com"
-                      value={contactEmail}
-                      onChange={(e) => setContactEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="contact_phone">Phone</Label>
-                    <Input
-                      id="contact_phone"
-                      type="tel"
-                      placeholder="+263 77 123 4567"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-end gap-2">
-                    <Button type="submit" disabled={savingContact}>
-                      {savingContact ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
-                    </Button>
-                    {hasSavedContact && (
-                      <Button type="button" variant="ghost" onClick={() => setIsEditingContact(false)}>
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-                </form>
-              );
-            })()}
-          </CardContent>
-        </Card>
-
         <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-3">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="products" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               Products
@@ -458,9 +531,17 @@ const SellerDashboardPage = () => {
               <ShoppingCart className="h-4 w-4" />
               Orders
             </TabsTrigger>
-            <TabsTrigger value="reviews" className="flex items-center gap-2">
+            <TabsTrigger value="messages" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
+              Messages
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="flex items-center gap-2">
+              <Star className="h-4 w-4" />
               Reviews
+            </TabsTrigger>
+            <TabsTrigger value="promotions" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Promotions
             </TabsTrigger>
           </TabsList>
 
@@ -609,7 +690,10 @@ const SellerDashboardPage = () => {
                   <ul className="space-y-4">
                     {orders.map((order) => {
                       const customer = order.user_id ? customerByUserId[order.user_id] : null;
-                      const isPending = (order.status ?? 'pending') === 'pending';
+                      const status = order.status ?? 'pending';
+                      const isPending = status === 'pending' || status === 'processing';
+                      const isShipped = status === 'shipped';
+                      const orderWithTracking = order as OrderRow & { tracking_carrier?: string | null; tracking_number?: string | null };
                       return (
                         <li
                           key={order.id}
@@ -631,12 +715,21 @@ const SellerDashboardPage = () => {
                                   ? 'bg-green-500/20 text-green-700 dark:text-green-400'
                                   : order.status === 'cancelled'
                                     ? 'bg-destructive/20 text-destructive'
-                                    : 'bg-primary/20 text-primary'
+                                    : order.status === 'shipped'
+                                      ? 'bg-blue-500/20 text-blue-700 dark:text-blue-400'
+                                      : 'bg-primary/20 text-primary'
                               )}
                             >
                               {order.status ?? 'pending'}
                             </span>
                           </div>
+                          {(orderWithTracking.tracking_carrier || orderWithTracking.tracking_number) && (
+                            <p className="text-xs text-muted-foreground">
+                              {orderWithTracking.tracking_carrier && <span>Carrier: {orderWithTracking.tracking_carrier}</span>}
+                              {orderWithTracking.tracking_carrier && orderWithTracking.tracking_number && ' · '}
+                              {orderWithTracking.tracking_number && <span>Tracking: {orderWithTracking.tracking_number}</span>}
+                            </p>
+                          )}
                           {/* Customer & shipping details (from checkout form) */}
                           <div className="rounded-md bg-muted/50 p-3 text-sm space-y-2">
                             <p className="font-medium text-muted-foreground">Customer & shipping</p>
@@ -696,6 +789,69 @@ const SellerDashboardPage = () => {
                             </ul>
                           )}
                           {isPending && (
+                            <Dialog open={shipDialogOrderId === order.id} onOpenChange={(open) => !open && setShipDialogOrderId(null)}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full sm:w-auto"
+                                disabled={shippingOrderId === order.id}
+                                onClick={() => openShipDialog(order)}
+                              >
+                                {shippingOrderId === order.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  'Mark as shipped'
+                                )}
+                              </Button>
+                              <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                  <DialogTitle>Mark order as shipped</DialogTitle>
+                                  <p className="text-sm text-muted-foreground">
+                                    Enter the carrier and tracking number. This will be visible to the customer and in the admin dashboard.
+                                  </p>
+                                </DialogHeader>
+                                <form onSubmit={handleMarkShipped} className="space-y-4 mt-2">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="ship-carrier">Carrier *</Label>
+                                    <Input
+                                      id="ship-carrier"
+                                      list="carrier-suggestions"
+                                      placeholder="e.g. DHL, FedEx, UPS, USPS"
+                                      value={shipCarrier}
+                                      onChange={(e) => setShipCarrier(e.target.value)}
+                                      required
+                                    />
+                                    <datalist id="carrier-suggestions">
+                                      <option value="DHL" />
+                                      <option value="FedEx" />
+                                      <option value="UPS" />
+                                      <option value="USPS" />
+                                      <option value="Aramex" />
+                                    </datalist>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="ship-tracking">Tracking number *</Label>
+                                    <Input
+                                      id="ship-tracking"
+                                      placeholder="Tracking or waybill number"
+                                      value={shipTrackingNumber}
+                                      onChange={(e) => setShipTrackingNumber(e.target.value)}
+                                      required
+                                    />
+                                  </div>
+                                  <div className="flex justify-end gap-2">
+                                    <Button type="button" variant="outline" onClick={() => setShipDialogOrderId(null)}>
+                                      Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={shippingOrderId === order.id}>
+                                      {shippingOrderId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Mark as shipped'}
+                                    </Button>
+                                  </div>
+                                </form>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                          {isShipped && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -714,6 +870,138 @@ const SellerDashboardPage = () => {
                       );
                     })}
                   </ul>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="messages" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Messages</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Conversations with customers who messaged you from your shop page.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {conversationsLoading ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : conversations.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-12">
+                    No messages yet. Customers can start a conversation from your shop page.
+                  </p>
+                ) : (
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <ul className="space-y-1 border-r border-border pr-4 min-w-[200px]">
+                      {conversations.map((c) => {
+                        const name = customerNames[c.customer_id];
+                        const label = name?.full_name || name?.username || 'Customer';
+                        const avatarUrl = customerAvatars[c.customer_id];
+                        const initials = name?.full_name
+                          ? name.full_name.trim().split(/\s+/).map((s) => s[0]).join('').slice(0, 2).toUpperCase()
+                          : name?.username?.slice(0, 2).toUpperCase() ?? '?';
+                        return (
+                          <li key={c.id}>
+                            <Button
+                              variant={selectedConvId === c.id ? 'secondary' : 'ghost'}
+                              className="w-full justify-start text-left gap-2"
+                              onClick={() => setSelectedConvId(c.id)}
+                            >
+                              <Avatar className="h-6 w-6 shrink-0">
+                                <AvatarImage src={avatarUrl ?? undefined} alt={label} />
+                                <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                              </Avatar>
+                              <span className="truncate">{label}</span>
+                              {c.updated_at && (
+                                <span className="text-xs text-muted-foreground ml-1 shrink-0">
+                                  {new Date(c.updated_at).toLocaleDateString()}
+                                </span>
+                              )}
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <div className="flex-1 flex flex-col min-h-[300px]">
+                      {!selectedConvId ? (
+                        <p className="text-muted-foreground text-center py-8">Select a conversation</p>
+                      ) : convMessagesLoading ? (
+                        <div className="flex justify-center py-12">
+                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex-1 overflow-y-auto space-y-3 py-2">
+                            {convMessages.map((m) => {
+                              const isMe = m.sender_id === user?.id;
+                              const otherName = customerNames[m.sender_id];
+                              const name = isMe
+                                ? (shop?.name ?? 'Store')
+                                : (otherName?.full_name || otherName?.username || 'Customer');
+                              const avatarUrl = isMe ? sellerProfile?.avatar_url : customerAvatars[m.sender_id];
+                              const getInitials = (fn: string | null, un: string | null) => {
+                                if (fn?.trim()) {
+                                  const parts = fn.trim().split(/\s+/);
+                                  return (parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : parts[0].slice(0, 2)).toUpperCase();
+                                }
+                                return un?.slice(0, 2).toUpperCase() ?? '?';
+                              };
+                              const initials = isMe
+                                ? (shop?.name?.trim().slice(0, 2).toUpperCase() ?? 'ST')
+                                : getInitials(otherName?.full_name ?? null, otherName?.username ?? null);
+                              return (
+                                <div
+                                  key={m.id}
+                                  className={cn(
+                                    'flex gap-2',
+                                    isMe ? 'flex-row-reverse' : 'flex-row'
+                                  )}
+                                >
+                                  <Avatar className="h-8 w-8 shrink-0">
+                                    <AvatarImage src={avatarUrl ?? undefined} alt={name} />
+                                    <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                                  </Avatar>
+                                  <div className={cn('flex flex-col min-w-0 max-w-[85%]', isMe ? 'items-end' : 'items-start')}>
+                                    <p className="text-xs font-medium text-muted-foreground mb-0.5">{name}</p>
+                                    <div
+                                      className={cn(
+                                        'rounded-2xl px-4 py-2 text-sm',
+                                        isMe
+                                          ? 'bg-primary text-primary-foreground'
+                                          : 'bg-muted text-foreground'
+                                      )}
+                                    >
+                                      <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                                      {m.created_at && (
+                                        <p className="text-xs mt-1 opacity-80">
+                                          {new Date(m.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <form onSubmit={handleSendMessage} className="flex gap-2 pt-3 border-t border-border">
+                            <Input
+                              value={messageDraft}
+                              onChange={(e) => setMessageDraft(e.target.value)}
+                              placeholder="Type a reply..."
+                              className="flex-1"
+                              disabled={sendingMessage}
+                              maxLength={2000}
+                            />
+                            <Button type="submit" size="icon" disabled={sendingMessage || !messageDraft.trim()}>
+                              {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                            </Button>
+                          </form>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -826,6 +1114,82 @@ const SellerDashboardPage = () => {
                     ))}
                   </ul>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="promotions" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Promotional email</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Send a one-time email to your followers and/or past customers. Use for announcements, offers, or news.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSendPromo} className="space-y-4 max-w-xl">
+                  <div>
+                    <Label htmlFor="promo-subject">Subject *</Label>
+                    <Input
+                      id="promo-subject"
+                      value={promoSubject}
+                      onChange={(e) => setPromoSubject(e.target.value)}
+                      placeholder="e.g. 20% off this weekend"
+                      className="mt-1"
+                      disabled={promoSending}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="promo-body">Message *</Label>
+                    <Textarea
+                      id="promo-body"
+                      value={promoBody}
+                      onChange={(e) => setPromoBody(e.target.value)}
+                      placeholder="Write your message. You can use plain text or simple HTML."
+                      rows={6}
+                      className="mt-1"
+                      disabled={promoSending}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Send to</Label>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={promoAudience.includes('followers')}
+                          onCheckedChange={(checked) => {
+                            setPromoAudience((prev) =>
+                              checked ? [...prev.filter((a) => a !== 'followers'), 'followers'] : prev.filter((a) => a !== 'followers')
+                            );
+                          }}
+                          disabled={promoSending}
+                        />
+                        <span className="text-sm">Followers</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={promoAudience.includes('customers')}
+                          onCheckedChange={(checked) => {
+                            setPromoAudience((prev) =>
+                              checked ? [...prev.filter((a) => a !== 'customers'), 'customers'] : prev.filter((a) => a !== 'customers')
+                            );
+                          }}
+                          disabled={promoSending}
+                        />
+                        <span className="text-sm">Past customers</span>
+                      </label>
+                    </div>
+                  </div>
+                  <Button type="submit" disabled={promoSending || promoAudience.length === 0}>
+                    {promoSending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-1" />
+                        Send promotional email
+                      </>
+                    )}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
