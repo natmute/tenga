@@ -14,7 +14,7 @@ Tenga is a **virtual mall**: one place where shoppers discover multiple shops an
 
 | Step | What they do |
 |------|-------------------------------|
-| **Discover** | Land on the homepage (hero, categories, featured shops, trending products). Use **Discover** and **Search** to find products and shops. |
+| **Discover** | Land on the homepage (hero, categories, **featured shops** [curated in Dev panel], trending products). Use **Discover** and **Search** to find products and shops. On the Discover page, **Featured Brands** shows only shops approved as “featured” in the Dev panel; the product grid shows only shops/products enabled for “Discover” in the Dev panel. |
 | **Browse** | Open **Shops** or **Categories**, click into a shop or product to see details, images, variants, and reviews. |
 | **Save & follow** | Add products to **Wishlist** and **follow** shops they like. |
 | **Cart** | Add items to the cart (with variants when available). Open the cart drawer to change quantity or remove items. |
@@ -42,8 +42,15 @@ Subscription billing (e.g. “rent” for the stall) and automatic commission/pa
 
 | Step | What they do |
 |------|-------------------------------|
-| **Admin dashboard** | View **pending shops** (awaiting approval), **all shops**, and **users**. Approve or reject new shops. Manage user roles and delete users/shops when needed. |
-| **Control** | Only users with the **admin** role can access the admin dashboard; permissions are enforced in the database (Row Level Security). |
+| **Admin dashboard** | **Performance stats at a glance** (pending shops, total shops, orders, users, revenue) between search and tabs. View **pending shops** (awaiting approval), **all shops**, **users**, **orders**, **products**, **messages**, and **promotions**. Approve or reject new shops; manage user roles; update order status and tracking; delete users/shops when needed. Toggle **trending** for products (homepage). |
+| **Control** | Only users with the **admin** role can access the admin dashboard; permissions are enforced in the database (Row Level Security). **Featured shops** (which shops appear in “Featured Brands” on home and Discover) are controlled in the **Dev panel**, not Admin. |
+
+### Dev Panel (Curation & Dev Tools)
+
+| Step | What they do |
+|------|-------------------------------|
+| **Dev panel** (`/dev`) | Available to users with **dev** access (`is_dev` flag). **Discover tab:** Choose which verified shops and products appear on the **Discover** page (toggles “On Discover”). **Featured tab:** Choose which verified shops appear in the **Featured Brands** carousel on the home page and Discover page (toggles “Feature” / “Featured”). **Dev access tab:** Grant or revoke dev panel access for other users. **Database tab:** View table row counts. **Overview:** Environment info and quick links. |
+| **Discover vs Featured** | **Discover** = which shops/products show in the Discover page product grid. **Featured** = which shops show in the “Featured Brands” carousel (home and Discover). Both are curated in the Dev panel. |
 
 ---
 
@@ -102,6 +109,15 @@ So: **shopping and order flow work end-to-end except real payment**; money movem
 | **Deployment** | App can be built (`npm run build`) and served as a static frontend; production deployment (e.g. Vercel) and Supabase production mode are **environment/config** steps. |
 | **E2E testing & launch** | No automated E2E suite or formal “Day 28” full-flow test documented here; manual testing is assumed. |
 
+### Curation & Dev Tools (Post–Week 4) ✅
+
+| Delivered | Status |
+|-----------|--------|
+| **Dev panel** (`/dev`) | Dev-only dashboard (users with `is_dev`): **Discover** tab toggles which shops/products appear on the Discover page; **Featured** tab toggles which shops appear in “Featured Brands” (home + Discover); **Dev access** to grant/revoke dev; **Database** table stats; **Overview** with environment and links. |
+| **Discover page curation** | RPC `get_discover_shop_ids()` as single source of truth; public can read verified shops. Discover product grid shows only shops/products with “On Discover” enabled in Dev panel. |
+| **Featured Brands** | Home and Discover “Featured Brands” carousel shows only shops with “Featured” toggle on in Dev panel (not “Discover”). RPC `set_shop_featured` lets devs update `is_featured` without admin role. |
+| **Admin dashboard** | **Performance stats at a glance** between search bar and tab bar: Pending shops, Shops, Orders, Users, Revenue (from order totals). Featured-shop control moved to Dev panel. |
+
 ---
 
 ## 3. What Still Needs to Be Accomplished
@@ -147,11 +163,12 @@ These items are **outstanding** to reach the full vision described in the develo
 | Area | Accomplished | Remaining |
 |------|--------------|-----------|
 | **Design & frontend** | Landing, components, routing, responsive layout, animations | Optional extra polish |
-| **Auth & users** | Sign up, login, logout, roles (user/seller/admin) | — |
+| **Auth & users** | Sign up, login, logout, roles (user/seller/admin), dev access (`is_dev`) | — |
 | **Shops & products** | Open Shop, approval, product CRUD, images, categories | Vendor onboarding tutorial |
-| **Shopping** | Browse, search, cart, wishlist, follow shops, checkout UI, order creation | **Real payment** |
+| **Shopping** | Browse, search, cart, wishlist, follow shops, checkout UI, order creation; Discover + Featured curation (Dev panel) | **Real payment** |
 | **Orders** | Create order, order history, seller order list, status updates | **Payment confirmation & webhooks** |
-| **Admin** | Approve/reject shops, view users/shops, role management | — |
+| **Admin** | Performance stats at a glance, approve/reject shops, users/shops/orders/products/messages/promotions, role management, trending toggles | — |
+| **Dev panel** | Discover/Featured curation, dev access management, database stats, RPCs for discover + featured | — |
 | **Money** | Pricing page, commission tiers (display only) | **Bank API, payments, commission/payout, subscription billing** |
 | **Launch** | Build, preview, docs | **Deploy, E2E, launch materials** |
 
@@ -162,6 +179,6 @@ These items are **outstanding** to reach the full vision described in the develo
 - **Title:** Tenga Virtual Mall — Client Overview  
 - **Audience:** Client / stakeholder  
 - **Source:** Development journal (30-day agile) + current codebase  
-- **Last aligned:** With codebase and `DOCUMENTATION.md` (technical reference for developers)
+- **Last updated:** Documentation updated to include Dev panel, Discover/Featured curation, admin performance stats, and clarification of what is accomplished vs. remaining.
 
 For technical details (setup, env vars, routes, data model, Supabase), see **DOCUMENTATION.md**.

@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
-import { Store, Check, X, ShieldAlert, Loader2, Users, Shield, Trash2, ExternalLink, Star, TrendingUp, Truck, Package, Plus, MessageCircle, Mail, Send, Search } from 'lucide-react';
+import { Store, Check, X, ShieldAlert, Loader2, Users, Shield, Trash2, ExternalLink, TrendingUp, Truck, Package, Plus, MessageCircle, Mail, Send, Search, DollarSign, ClipboardList } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -63,7 +63,6 @@ const AdminDashboardPage = () => {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
-  const [togglingFeaturedId, setTogglingFeaturedId] = useState<string | null>(null);
   const [togglingTrendingId, setTogglingTrendingId] = useState<string | null>(null);
   const [allOrders, setAllOrders] = useState<OrderRow[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -422,17 +421,6 @@ const AdminDashboardPage = () => {
     toast({ title: 'Order updated', description: 'Status and tracking have been saved.' });
   };
 
-  const handleToggleFeatured = async (shop: Shop) => {
-    setTogglingFeaturedId(shop.id);
-    const next = !(shop as Shop & { is_featured?: boolean }).is_featured;
-    const { error } = await supabase.from('shops').update({ is_featured: next }).eq('id', shop.id);
-    setTogglingFeaturedId(null);
-    if (!error) {
-      setAllShops((prev) => prev.map((s) => (s.id === shop.id ? { ...s, is_featured: next } : s)));
-      toast({ title: next ? 'Shop featured' : 'Shop unfeatured' });
-    } else toast({ title: 'Failed to update', description: error.message, variant: 'destructive' });
-  };
-
   const handleToggleTrending = async (product: Product) => {
     setTogglingTrendingId(product.id);
     const next = !(product as Product & { is_trending?: boolean }).is_trending;
@@ -700,6 +688,57 @@ const AdminDashboardPage = () => {
               />
             </div>
           </div>
+
+          {/* Performance stats at a glance */}
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-3">
+              <div className="rounded-md bg-amber-500/10 p-2">
+                <ClipboardList className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Pending shops</p>
+                <p className="text-lg font-semibold tabular-nums">{shopsLoading ? '—' : pendingShops.length}</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-3">
+              <div className="rounded-md bg-blue-500/10 p-2">
+                <Store className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Shops</p>
+                <p className="text-lg font-semibold tabular-nums">{shopsLoading ? '—' : allShops.length}</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-3">
+              <div className="rounded-md bg-emerald-500/10 p-2">
+                <Truck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Orders</p>
+                <p className="text-lg font-semibold tabular-nums">{ordersLoading ? '—' : allOrders.length}</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-3">
+              <div className="rounded-md bg-violet-500/10 p-2">
+                <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Users</p>
+                <p className="text-lg font-semibold tabular-nums">{usersLoading ? '—' : users.length}</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-3">
+              <div className="rounded-md bg-green-500/10 p-2">
+                <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Revenue</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {ordersLoading ? '—' : `$${allOrders.reduce((sum, o) => sum + (Number((o as OrderRow & { total?: number }).total) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <Tabs value={adminActiveTab} onValueChange={setAdminActiveTab} className="space-y-6">
@@ -825,7 +864,6 @@ const AdminDashboardPage = () => {
                       <th className="text-left py-3 font-medium">Owner</th>
                       <th className="text-left py-3 font-medium">Status</th>
                       <th className="text-left py-3 font-medium">Tier</th>
-                      <th className="text-left py-3 font-medium">Featured</th>
                       <th className="text-right py-3 font-medium">Actions</th>
                     </tr>
                   </thead>
@@ -859,20 +897,6 @@ const AdminDashboardPage = () => {
                               <SelectItem value="enterprise">Enterprise</SelectItem>
                             </SelectContent>
                           </Select>
-                        </td>
-                        <td className="py-3">
-                          {shop.is_verified && (
-                            <Button
-                              size="sm"
-                              variant={(shop as Shop & { is_featured?: boolean }).is_featured ? 'default' : 'outline'}
-                              onClick={() => handleToggleFeatured(shop)}
-                              disabled={togglingFeaturedId === shop.id}
-                              className="gap-1"
-                            >
-                              {togglingFeaturedId === shop.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Star className={`h-3.5 w-3.5 ${(shop as Shop & { is_featured?: boolean }).is_featured ? 'fill-current' : ''}`} />}
-                              {(shop as Shop & { is_featured?: boolean }).is_featured ? 'Featured' : 'Feature'}
-                            </Button>
-                          )}
                         </td>
                         <td className="py-3 text-right">
                           <div className="flex justify-end gap-2">

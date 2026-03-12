@@ -23,12 +23,14 @@ import {
   Store,
   Package,
   Compass,
+  Star,
 } from 'lucide-react';
 
 type TableStat = { table: string; count: number };
 type DevProfile = { id: string; full_name: string | null; username: string | null; is_dev: boolean };
 type DiscoverShop = { id: string; name: string; slug: string; is_on_discover: boolean };
 type DiscoverProduct = { id: string; name: string; slug: string; shop_id: string; shop_name: string; is_on_discover: boolean };
+type FeaturedShop = { id: string; name: string; slug: string; is_featured: boolean };
 
 const DevDashboardPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -46,6 +48,9 @@ const DevDashboardPage = () => {
   const [discoverLoading, setDiscoverLoading] = useState(true);
   const [togglingShopId, setTogglingShopId] = useState<string | null>(null);
   const [togglingProductId, setTogglingProductId] = useState<string | null>(null);
+  const [featuredShops, setFeaturedShops] = useState<FeaturedShop[]>([]);
+  const [featuredShopsLoading, setFeaturedShopsLoading] = useState(true);
+  const [togglingFeaturedId, setTogglingFeaturedId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -144,6 +149,25 @@ const DevDashboardPage = () => {
     })();
   }, [isDev]);
 
+  useEffect(() => {
+    if (!isDev) return;
+    (async () => {
+      const { data: shopRows } = await supabase
+        .from('shops')
+        .select('id, name, slug, is_featured')
+        .eq('is_verified', true)
+        .order('name');
+      const shops: FeaturedShop[] = (shopRows ?? []).map((s) => ({
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        is_featured: (s as { is_featured?: boolean }).is_featured === true,
+      }));
+      setFeaturedShops(shops);
+      setFeaturedShopsLoading(false);
+    })();
+  }, [isDev]);
+
   const handleSetShopDiscover = async (shopId: string, onDiscover: boolean) => {
     setTogglingShopId(shopId);
     const { error } = await supabase.rpc('set_shop_on_discover', { p_shop_id: shopId, p_on_discover: onDiscover });
@@ -166,6 +190,19 @@ const DevDashboardPage = () => {
     }
     setDiscoverProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, is_on_discover: onDiscover } : p)));
     toast({ title: onDiscover ? 'Product added to Discover' : 'Product removed from Discover' });
+  };
+
+  const handleToggleFeatured = async (shop: FeaturedShop) => {
+    setTogglingFeaturedId(shop.id);
+    const next = !shop.is_featured;
+    const { error } = await supabase.rpc('set_shop_featured', { p_shop_id: shop.id, p_featured: next });
+    setTogglingFeaturedId(null);
+    if (error) {
+      toast({ title: 'Failed to update', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setFeaturedShops((prev) => prev.map((s) => (s.id === shop.id ? { ...s, is_featured: next } : s)));
+    toast({ title: next ? 'Shop featured' : 'Shop unfeatured' });
   };
 
   const handleSetDev = async (profile: DevProfile, makeDev: boolean) => {
@@ -253,7 +290,7 @@ const DevDashboardPage = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1 p-1">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto gap-1 p-1">
             <TabsTrigger value="overview" className="flex items-center gap-1.5 py-2">
               <Server className="h-4 w-4 shrink-0" />
               Overview
@@ -261,6 +298,10 @@ const DevDashboardPage = () => {
             <TabsTrigger value="discover" className="flex items-center gap-1.5 py-2">
               <Compass className="h-4 w-4 shrink-0" />
               Discover
+            </TabsTrigger>
+            <TabsTrigger value="featured" className="flex items-center gap-1.5 py-2">
+              <Star className="h-4 w-4 shrink-0" />
+              Featured
             </TabsTrigger>
             <TabsTrigger value="dev-access" className="flex items-center gap-1.5 py-2">
               <UserPlus className="h-4 w-4 shrink-0" />
@@ -396,6 +437,62 @@ const DevDashboardPage = () => {
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+          </TabsContent>
+
+          <TabsContent value="featured" className="space-y-6">
+        {/* Featured shops (home page) */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5" />
+              Featured shops
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Control which verified shops appear in the <strong>Featured Shops</strong> section on the home page.
+            </p>
+            <Button size="sm" variant="outline" className="w-fit" asChild>
+              <Link to="/" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-1" />
+                View home page
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
+              <Store className="h-4 w-4" />
+              Shops ({featuredShops.filter((s) => s.is_featured).length} featured of {featuredShops.length})
+            </h4>
+            {featuredShopsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : featuredShops.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No verified shops yet.</p>
+            ) : (
+              <div className="border rounded-lg divide-y divide-border max-h-[320px] overflow-y-auto">
+                {featuredShops.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{s.name}</p>
+                      <p className="text-xs text-muted-foreground">/{s.slug}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={s.is_featured ? 'default' : 'outline'}
+                      onClick={() => handleToggleFeatured(s)}
+                      disabled={togglingFeaturedId === s.id}
+                      className="gap-1"
+                    >
+                      {togglingFeaturedId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Star className={`h-3.5 w-3.5 ${s.is_featured ? 'fill-current' : ''}`} />}
+                      {s.is_featured ? 'Featured' : 'Feature'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -539,7 +636,7 @@ const DevDashboardPage = () => {
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <p>
               Use the <strong>Admin</strong> dashboard to approve shops, manage users, and toggle
-              trending/featured.
+              trending. Use the <strong>Featured</strong> tab above to control which shops appear on the home page.
             </p>
             <p>
               Run migrations from the Supabase Dashboard or CLI to keep the database schema in sync.

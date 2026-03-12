@@ -1,6 +1,8 @@
 # Tenga — Documentation
 
-**Tenga** is a social e-commerce web app that brings your favorite shops into one place. Shoppers can discover shops and products, follow shops, manage a cart and wishlist, and place orders. Sellers can open and manage shops, list products, and fulfill orders. Admins can approve shops and manage the platform.
+**Tenga** is a social e-commerce web app that brings your favorite shops into one place. Shoppers can discover shops and products, follow shops, manage a cart and wishlist, and place orders. Sellers can open and manage shops, list products, and fulfill orders. Admins can approve shops and manage the platform. **Dev panel** users (with `is_dev`) can curate Discover and Featured content and manage dev access.
+
+For **what has been accomplished vs. what still needs to be done** (aligned with the development journal), see **CLIENT_DOCUMENTATION.md**. Recent additions include: Dev panel (`/dev`) with Discover/Featured curation and dev access; admin performance stats at a glance; RPCs for discover and featured shops; clear split between “Featured Brands” (Dev panel Featured tab) and Discover grid (Dev panel Discover tab).
 
 ---
 
@@ -30,7 +32,8 @@
 
 - **Shopper** — Browse, search, follow shops, cart, wishlist, checkout, orders, profile.  
 - **Seller** — Everything a shopper can do, plus open a shop, manage products, and view a seller dashboard and orders.  
-- **Admin** — Approve shops, manage users/shops, and access the admin dashboard.
+- **Admin** — Approve shops, manage users/shops/orders/products/messages, view performance stats, and access the admin dashboard.  
+- **Dev** (`is_dev` flag) — Curate Discover and Featured content, manage dev access, view database stats (Dev panel at `/dev`). Can be combined with admin.
 
 ---
 
@@ -147,8 +150,8 @@ All client-side env vars must be prefixed with `VITE_` so Vite exposes them to t
 
 ### Shoppers
 
-- **Home:** Hero, categories, featured shops, trending products, promo banner.  
-- **Discover / Search:** Search and filter products and shops.  
+- **Home:** Hero, categories, featured shops (curated in Dev panel), trending products, promo banner.  
+- **Discover / Search:** Discover page: “Featured Brands” carousel = shops with Featured on (Dev panel); product grid = shops/products with Discover on (Dev panel). Search and filter products and shops.  
 - **Shops & categories:** Browse by shop and category.  
 - **Product pages:** Product detail, variants, add to cart, add to wishlist, reviews.  
 - **Cart:** Cart drawer, update quantity, remove items, go to checkout.  
@@ -167,9 +170,13 @@ All client-side env vars must be prefixed with `VITE_` so Vite exposes them to t
 
 ### Admins
 
-- **Admin dashboard:** Overview of shops, users, and approvals.  
-- **Shop approval:** Approve or reject pending shops.  
-- **Policies:** Admin-only RLS and roles (see `supabase/migrations`).
+- **Admin dashboard:** Performance stats at a glance (pending shops, shops, orders, users, revenue). Tabs: Shops (pending + all), Products (trending toggles), Orders (filter, status/tracking), Messages, Promotions, Users (roles, delete). Approve or reject pending shops; manage user roles.  
+- **Policies:** Admin-only RLS and roles (see `supabase/migrations`). Featured-shop control lives in the **Dev panel**, not Admin.
+
+### Dev panel (`is_dev` users)
+
+- **Dev dashboard** (`/dev`): **Discover** — toggle which shops/products appear on the Discover page. **Featured** — toggle which shops appear in “Featured Brands” (home + Discover). **Dev access** — grant/revoke dev panel access. **Database** — table row counts. **Overview** — environment and links.  
+- **RPCs:** `get_discover_shop_ids()` (source of truth for Discover page), `set_shop_on_discover`, `set_product_on_discover`, `set_shop_featured` (dev-only updates). Public can read verified shops for Discover/Featured display.
 
 ### Global
 
@@ -202,7 +209,8 @@ All client-side env vars must be prefixed with `VITE_` so Vite exposes them to t
 | `/privacy-policy` | PrivacyPolicyPage | Privacy policy |
 | `/terms-of-service` | TermsOfServicePage | Terms of service |
 | `/seller-dashboard` | SellerDashboardPage | Seller dashboard |
-| `/admin` | AdminDashboardPage | Admin dashboard |
+| `/admin` | AdminDashboardPage | Admin dashboard (performance stats, shops, products, orders, messages, promotions, users) |
+| `/dev` | DevDashboardPage | Dev panel (Discover/Featured curation, dev access, database stats) — requires `is_dev` |
 | `/pricing` | PricingPage | Pricing info |
 | `/success-stories` | SuccessStoriesPage | Success stories |
 | `/wishlist` | WishlistPage | User wishlist |
@@ -238,6 +246,7 @@ Database tables (Supabase) include: `profiles`, `shops`, `products`, `product_im
   - Use **Supabase CLI:** `supabase link --project-ref YOUR_REF` then `supabase db push`.  
 - **Seeds:** e.g. `20260303000000_seed_categories.sql` seeds categories for the Open Shop form.  
 - **Edge functions:** e.g. `delete-user` for account deletion.  
+- **RPCs (curation):** `get_discover_shop_ids()` (Discover page), `set_shop_on_discover`, `set_product_on_discover`, `set_shop_featured` (Dev panel). See migrations `20260333000000_discover_curation_dev.sql`, `20260334000000_dev_set_shop_featured_rpc.sql`, `20260335000000_discover_shop_ids_rpc_and_public_read.sql`.  
 - **Docs:** See `supabase/README-MIGRATIONS.md` for migration and seed instructions.
 
 ---

@@ -235,6 +235,8 @@ const DiscoverPage = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [products, setProducts] = useState<Product[]>([]);
   const [discoverShops, setDiscoverShops] = useState<Shop[]>([]);
+  const [featuredShops, setFeaturedShops] = useState<Shop[]>([]);
+  const [featuredShopProducts, setFeaturedShopProducts] = useState<Record<string, Product[]>>({});
   const [realShopsMap, setRealShopsMap] = useState<Record<string, Shop>>({});
   const [categories, setCategories] = useState<Category[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
@@ -256,36 +258,43 @@ const DiscoverPage = () => {
     }
   }, [categoryFromUrl]);
 
-  // Fetch products that appear on Discover: from verified shops and (shop is_on_discover OR product is_on_discover)
+  // Fetch products that appear on Discover: use RPC for which shops are on discover (single source of truth)
   useEffect(() => {
     (async () => {
+      const { data: discoverShopIds } = await supabase.rpc('get_discover_shop_ids');
+      const idsOnDiscover = new Set<string>((discoverShopIds ?? []) as string[]);
+
       const { data: shopRows } = await supabase
         .from('shops')
-        .select('id, name, slug, logo, banner, bio, location, categories(name), is_on_discover')
+        .select('id, name, slug, logo, banner, bio, location, categories(name), is_on_discover, is_featured')
         .eq('is_verified', true);
       if (!shopRows?.length) {
         setProducts([]);
         setDiscoverShops([]);
         setRealShopsMap({});
+        setFeaturedShops([]);
+        setFeaturedShopProducts({});
         setProductsLoading(false);
         return;
       }
       const shopIds = shopRows.map((s) => s.id);
-      const shopOnDiscover = new Set(shopRows.filter((s) => (s as { is_on_discover?: boolean }).is_on_discover).map((s) => s.id));
       const shopMap: Record<string, Shop> = {};
       const shopsForDiscover: Shop[] = [];
+      const featuredShopsList: Shop[] = [];
       shopRows.forEach((r) => {
         const shop = mapDbRowToShop(r);
         shopMap[r.id] = shop;
-        if (shopOnDiscover.has(r.id)) shopsForDiscover.push(shop);
+        if (idsOnDiscover.has(r.id)) shopsForDiscover.push(shop);
+        if ((r as { is_featured?: boolean }).is_featured === true) featuredShopsList.push(shop);
       });
       setRealShopsMap(shopMap);
+      setFeaturedShops(featuredShopsList);
       const { data: productRows } = await supabase
         .from('products')
         .select('*, product_images(image_url), shops(name, slug, logo, categories(name))')
         .in('shop_id', shopIds);
       const rows = (productRows ?? []).filter((row: { shop_id: string; is_on_discover?: boolean }) => {
-        const shopInDiscover = shopOnDiscover.has(row.shop_id);
+        const shopInDiscover = idsOnDiscover.has(row.shop_id);
         const productInDiscover = row.is_on_discover === true;
         return shopInDiscover || productInDiscover;
       });
@@ -297,14 +306,14 @@ const DiscoverPage = () => {
         s.productCount = productCountByShopId[s.id] ?? 0;
       });
       setDiscoverShops([...shopsForDiscover]);
-      const productIds = rows.map((r) => r.id);
+      const allProductIds = (productRows ?? []).map((r: { id: string }) => r.id);
       let ratingByProduct: Record<string, { sum: number; count: number }> = {};
-      if (productIds.length > 0) {
+      if (allProductIds.length > 0) {
         const { data: reviewRows } = await supabase
           .from('reviews')
           .select('product_id, rating')
-          .in('product_id', productIds);
-        (reviewRows ?? []).forEach((r) => {
+          .in('product_id', allProductIds);
+        (reviewRows ?? []).forEach((r: { product_id: string; rating: number }) => {
           const id = r.product_id;
           if (!id || r.rating == null) return;
           if (!ratingByProduct[id]) ratingByProduct[id] = { sum: 0, count: 0 };
@@ -312,7 +321,7 @@ const DiscoverPage = () => {
           ratingByProduct[id].count += 1;
         });
       }
-      const mapped = rows.map((row) => {
+      const mapRowToProduct = (row: Parameters<typeof mapDbProductToProduct>[0]) => {
         const p = mapDbProductToProduct(row);
         const agg = ratingByProduct[row.id];
         if (agg && agg.count > 0) {
@@ -320,8 +329,15 @@ const DiscoverPage = () => {
           p.reviewCount = agg.count;
         }
         return p;
-      });
+      };
+      const mapped = rows.map((row) => mapRowToProduct(row));
       setProducts(mapped);
+      const allMappedProducts = (productRows ?? []).map((row: Parameters<typeof mapDbProductToProduct>[0]) => mapRowToProduct(row));
+      const featuredProductsMap: Record<string, Product[]> = {};
+      featuredShopsList.forEach((shop) => {
+        featuredProductsMap[shop.id] = allMappedProducts.filter((p) => p.shopId === shop.id).slice(0, 3);
+      });
+      setFeaturedShopProducts(featuredProductsMap);
       setProductsLoading(false);
     })();
   }, []);
@@ -365,31 +381,6 @@ const DiscoverPage = () => {
         .filter(Boolean),
     [searchQuery]
   );
-
-  const filteredDiscoverShops = useMemo(() => {
-    return discoverShops.filter((shop) => {
-      const searchableText = [shop.name, shop.slug, shop.bio ?? '', shop.category ?? '']
-        .join(' ')
-        .toLowerCase();
-      const matchesSearch =
-        searchTerms.length === 0 ||
-        searchTerms.every((term) => searchableText.includes(term));
-      const matchesCategory =
-        filters.categories.length === 0 ||
-        (shop.category && filters.categories.includes(shop.category));
-      return matchesSearch && matchesCategory;
-    });
-  }, [discoverShops, searchTerms, filters.categories]);
-
-  const shopFeaturedProducts = useMemo(() => {
-    const map: Record<string, Product[]> = {};
-    filteredDiscoverShops.forEach((shop) => {
-      map[shop.id] = products
-        .filter((p) => p.shopId === shop.id)
-        .slice(0, 3);
-    });
-    return map;
-  }, [filteredDiscoverShops, products]);
 
   const filteredProducts = useMemo(() => {
     const terms = searchTerms;
@@ -546,11 +537,11 @@ const DiscoverPage = () => {
           </div>
         )}
 
-        {/* Featured Brands Carousel */}
-        {filteredDiscoverShops.length > 0 && (
+        {/* Featured Brands: only shops with Featured toggle on in dev panel */}
+        {featuredShops.length > 0 && (
           <FeaturedBrandsCarousel
-            shops={filteredDiscoverShops}
-            shopFeaturedProducts={shopFeaturedProducts}
+            shops={featuredShops}
+            shopFeaturedProducts={featuredShopProducts}
           />
         )}
 
